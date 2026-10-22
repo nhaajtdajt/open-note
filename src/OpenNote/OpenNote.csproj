@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <AssemblyTitle>Open Note</AssemblyTitle>
+    <Product>Open Note</Product>
+    <Version>1.0.0</Version>
+
+    <!-- Memory: a mostly idle tray app. No background GC thread, and a GC that prefers
+         compacting over growing the heap. -->
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <!-- Run the precompiled (ReadyToRun) code as it is instead of re-JITting hot methods in the
+         background. Measured with 4 notes: ~10 MB less private memory and half the startup CPU. -->
+    <TieredCompilation>false</TieredCompilation>
+    <!-- Precompiled code on publish: less JIT work and JIT memory at startup. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <!-- The UI is English: leave out the framework's translated resource files (156 fewer files). -->
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="OpenNote.Tests" />
+  </ItemGroup>
+
+</Project>

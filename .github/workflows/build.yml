@@ -1,0 +1,57 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: write # attach downloads to a GitHub Release on version tags
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: dotnet test tests/OpenNote.Tests/OpenNote.Tests.csproj -c Release
+
+      - name: Install Inno Setup
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
+
+      # Store identity comes from repository variables (Settings > Secrets and variables >
+      # Actions > Variables); without them the MSIX gets placeholder values.
+      - name: Package
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          STORE_IDENTITY_NAME: ${{ vars.STORE_IDENTITY_NAME }}
+          STORE_PUBLISHER: ${{ vars.STORE_PUBLISHER }}
+          STORE_PUBLISHER_DISPLAY_NAME: ${{ vars.STORE_PUBLISHER_DISPLAY_NAME }}
+        run: |
+          $identity = @{}
+          if ($env:STORE_IDENTITY_NAME) { $identity.IdentityName = $env:STORE_IDENTITY_NAME }
+          if ($env:STORE_PUBLISHER) { $identity.Publisher = $env:STORE_PUBLISHER }
+          if ($env:STORE_PUBLISHER_DISPLAY_NAME) { $identity.PublisherDisplayName = $env:STORE_PUBLISHER_DISPLAY_NAME }
+          $version = '${{ github.ref_name }}'.TrimStart('v')
+          ./build/package.ps1 -Version $version -SkipTests @identity
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $files = Get-ChildItem publish -File | Where-Object Extension -in '.zip', '.exe', '.msix' | ForEach-Object FullName
+          gh release create "${{ github.ref_name }}" @files --title "Open Note ${{ github.ref_name }}" --generate-notes

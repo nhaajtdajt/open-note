@@ -1,0 +1,117 @@
+<Window x:Class="OpenNote.Views.ApiKeysWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:ClassModifier="internal"
+        Title="Open Note – Gemini API keys" Width="560" SizeToContent="Height"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+        Background="#F3F3F3" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#E2E2E2" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Padding" Value="14,12" />
+            <Setter Property="Margin" Value="0,0,0,10" />
+        </Style>
+        <Style x:Key="Primary" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="16,7" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="#FFE680" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FBDB5C" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="Plain" TargetType="Button" BasedOn="{StaticResource Primary}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="White" BorderBrush="#D0D0D0" BorderThickness="1" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F0F0F0" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <StackPanel Margin="18,16,18,16">
+        <TextBlock Text="Gemini API keys" FontSize="18" FontWeight="SemiBold" Foreground="#1F1F1F" />
+        <TextBlock Margin="0,4,0,14" Foreground="#555" TextWrapping="Wrap"
+                   Text="Keys are only needed for Check with AI (Ctrl+G). They are free, and stay on this PC." />
+
+        <!-- How to get a key -->
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Text="How to get a key" FontWeight="SemiBold" Margin="0,0,0,6" />
+                <TextBlock TextWrapping="Wrap" LineHeight="21">
+                    1. Open Google AI Studio and sign in with your Google account.<LineBreak />
+                    2. Click <Bold>Create API key</Bold>, choose a project (or create one), then copy the key.<LineBreak />
+                    3. Paste it below (one key per line) and click <Bold>Check and save</Bold>.
+                </TextBlock>
+                <Button x:Name="OpenStudioButton" Style="{StaticResource Plain}" Margin="0,10,0,0" HorizontalAlignment="Left"
+                        Content="Open aistudio.google.com/apikey" Click="OpenStudio_Click" />
+            </StackPanel>
+        </Border>
+
+        <!-- Tip: more keys, more free quota -->
+        <Border Style="{StaticResource Card}" Background="#FFF8D6" BorderBrush="#F0DE8C">
+            <TextBlock TextWrapping="Wrap" LineHeight="20">
+                <Bold>Tip: more free requests.</Bold> The free quota belongs to a Google Cloud project, so keys in the
+                same project share it. Create keys in <Bold>several projects</Bold> (choose "Create API key in new project"
+                each time) and paste them all. Open Note uses them in turn and skips one that has run out for the day.
+            </TextBlock>
+        </Border>
+
+        <TextBlock Text="Your keys (one per line)" FontWeight="SemiBold" Margin="2,4,0,6" />
+        <TextBox x:Name="KeysBox" AcceptsReturn="True" TextWrapping="NoWrap" Height="96"
+                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                 FontFamily="Consolas" FontSize="12.5" Padding="6,5" BorderBrush="#D0D0D0" />
+
+        <!-- Check results -->
+        <StackPanel x:Name="CheckingPanel" Margin="0,10,0,0" Visibility="Collapsed">
+            <TextBlock x:Name="CheckingText" Foreground="#555" />
+            <ProgressBar IsIndeterminate="True" Height="3" Margin="0,6,0,0" BorderThickness="0" Foreground="#D9A400" Background="#14000000" />
+        </StackPanel>
+        <ItemsControl x:Name="Results" Margin="0,10,0,0">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal" Margin="0,2">
+                        <TextBlock Text="{Binding Icon}" FontFamily="Segoe UI Symbol" Foreground="{Binding Color}" Width="20" />
+                        <TextBlock Text="{Binding Masked}" FontFamily="Consolas" Width="140" Foreground="#333" />
+                        <TextBlock Text="{Binding Message}" Foreground="{Binding Color}" TextWrapping="Wrap" MaxWidth="340" />
+                    </StackPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock x:Name="Summary" Margin="0,8,0,0" TextWrapping="Wrap" FontWeight="SemiBold" Visibility="Collapsed" />
+
+        <TextBlock Margin="0,12,0,0" Foreground="#777" FontSize="11.5" TextWrapping="Wrap"
+                   Text="Privacy: when you use Check with AI, only the text you selected is sent to Google. On the free tier Google may use it to improve its products, so don't check private or sensitive text." />
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+            <Button x:Name="CloseButton" Style="{StaticResource Plain}" Content="Close" Margin="0,0,8,0" Click="Close_Click" IsCancel="True" />
+            <Button x:Name="SaveButton" Style="{StaticResource Primary}" Content="Check and save" Click="Save_Click" IsDefault="False" />
+        </StackPanel>
+    </StackPanel>
+</Window>

@@ -1,0 +1,13 @@
+bin/
+obj/
+publish/
+*.user
+.vs/
+TestResults/
+
+# Never commit personal data or keys
+settings.json
+notes.json*
+notes.corrupt-*
+error.log
+.env

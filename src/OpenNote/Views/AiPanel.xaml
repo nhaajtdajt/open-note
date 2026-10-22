@@ -1,0 +1,103 @@
+<UserControl x:Class="OpenNote.Views.AiPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:ClassModifier="internal"
+             Width="400" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13"
+             TextOptions.TextFormattingMode="Display">
+    <UserControl.Resources>
+        <Style x:Key="Pill" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="Foreground" Value="#1F1F1F" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="#FFE680" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#FBDB5C" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#8A6A00" />
+                                <Setter TargetName="Bd" Property="BorderThickness" Value="1" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Read-only but selectable, so a suggestion can also be copied in part. -->
+        <Style x:Key="Suggestion" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#1F1F1F" />
+            <Setter Property="Margin" Value="-2,3,0,8" />
+            <Setter Property="MaxHeight" Value="160" />
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Margin leaves room for the shadow inside the transparent popup. -->
+    <Border Margin="10" CornerRadius="12" Background="#FCFCFA" BorderBrush="#24000000" BorderThickness="1" Padding="14,10,14,14">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="18" ShadowDepth="4" Direction="270" Opacity="0.22" />
+        </Border.Effect>
+        <StackPanel>
+            <Grid Margin="0,0,0,8">
+                <TextBlock Text="Check with AI" FontWeight="SemiBold" Foreground="#1F1F1F" VerticalAlignment="Center" />
+                <Button x:Name="CloseButton" HorizontalAlignment="Right" Style="{StaticResource IconButton}"
+                        Foreground="#555555" Content="&#xE8BB;" ToolTip="Close (Esc)" />
+            </Grid>
+
+            <StackPanel x:Name="LoadingView">
+                <TextBlock Text="Asking Gemini…" Foreground="#666666" />
+                <ProgressBar IsIndeterminate="True" Height="3" Margin="0,8,0,2" BorderThickness="0"
+                             Foreground="#D9A400" Background="#14000000" />
+            </StackPanel>
+
+            <ScrollViewer x:Name="ResultView" Visibility="Collapsed" MaxHeight="520" VerticalScrollBarVisibility="Auto">
+              <StackPanel>
+                <!-- What the user's own sentence says, and a verdict on it -->
+                <Border x:Name="ReviewCard" Background="#F2F1EC" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                    <StackPanel>
+                        <DockPanel>
+                            <Border x:Name="VerdictBadge" DockPanel.Dock="Right" CornerRadius="9" Padding="9,1,9,2" VerticalAlignment="Center">
+                                <TextBlock x:Name="VerdictText" FontSize="11.5" FontWeight="SemiBold" />
+                            </Border>
+                            <TextBlock x:Name="ReviewTitle" Text="Your sentence means" FontSize="11.5" Foreground="#6B6B6B" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <TextBox x:Name="YourMeaningText" Style="{StaticResource Suggestion}" Margin="-2,4,0,2" />
+                        <TextBlock x:Name="CommentText" TextWrapping="Wrap" Foreground="#3A3A3A" />
+                    </StackPanel>
+                </Border>
+                <Border Background="#F2F1EC" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock x:Name="MinimalLabel" Text="Closest to your wording" FontSize="11.5" Foreground="#6B6B6B" />
+                        <TextBox x:Name="MinimalText" Style="{StaticResource Suggestion}" />
+                        <Button x:Name="UseMinimalButton" Style="{StaticResource Pill}" Content="Use this" HorizontalAlignment="Left" />
+                    </StackPanel>
+                </Border>
+                <Border x:Name="NaturalCard" Background="#F2F1EC" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                    <StackPanel>
+                        <TextBlock x:Name="NaturalLabel" Text="More natural" FontSize="11.5" Foreground="#6B6B6B" />
+                        <TextBox x:Name="NaturalText" Style="{StaticResource Suggestion}" />
+                        <TextBlock x:Name="NaturalMeaningText" TextWrapping="Wrap" Foreground="#5E5E5E" FontSize="12" Margin="0,-2,0,8" />
+                        <Button x:Name="UseNaturalButton" Style="{StaticResource Pill}" Content="Use this" HorizontalAlignment="Left" />
+                    </StackPanel>
+                </Border>
+                <TextBlock x:Name="ChangesText" TextWrapping="Wrap" Foreground="#5E5E5E" FontSize="12" />
+              </StackPanel>
+            </ScrollViewer>
+
+            <StackPanel x:Name="ErrorView" Visibility="Collapsed">
+                <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="#9A3412" />
+                <Button x:Name="RetryButton" Style="{StaticResource Pill}" Content="Try again" Margin="0,10,0,0" HorizontalAlignment="Left" />
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</UserControl>
