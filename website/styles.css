@@ -1,0 +1,230 @@
+:root {
+  --sea-1: #03303a;
+  --sea-2: #08646c;
+  --sea-3: #11979a;
+  --rose: #ff4f7b;
+  --text: #f3fffd;
+  --muted: #c2ebe6;
+  --faint: #8ccac3;
+  --pink: #ffb6c9;
+  --rose-deep: #e8335f;
+  --sky: #bff3ec;
+  --blush: #ffd6e8;
+  --rose-light: #ff7fa0;
+  --ink: #0a3a40;
+  --love: #ff4f7b;
+  --azure: #4fe0d0;
+  --bar-h: 68px;
+  --gutter: clamp(16px, 5vw, 72px);
+  --body: "Be Vietnam Pro", "Segoe UI", system-ui, sans-serif;
+  --hand: "Patrick Hand", "Segoe Print", cursive;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  color: var(--text);
+  font: 400 17px/1.6 var(--body);
+  /* a deep turquoise desk with a rose glow, like a wallpaper behind the notes */
+  background:
+    radial-gradient(60vmax 45vmax at 12% 100%, rgba(255, 79, 123, .34), transparent 70%),
+    radial-gradient(50vmax 40vmax at 95% 0%, rgba(255, 127, 160, .16), transparent 70%),
+    linear-gradient(145deg, var(--sea-1) 0%, var(--sea-2) 55%, var(--sea-3) 100%) fixed;
+  background-color: var(--sea-2);
+  overflow-x: hidden;
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--pink); outline-offset: 3px; border-radius: 6px; }
+
+.skip {
+  position: absolute; left: 12px; top: -60px; z-index: 50;
+  background: var(--pink); color: var(--ink); padding: 8px 14px; border-radius: 8px; text-decoration: none;
+}
+.skip:focus { top: 12px; }
+
+/* top bar */
+.bar {
+  position: absolute; inset: 0 0 auto 0; z-index: 30;
+  height: var(--bar-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--gutter);
+}
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 18px; }
+.brand img { display: block; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .3)); }
+.bar-links { display: flex; align-items: center; gap: clamp(14px, 2.5vw, 30px); font-size: 15px; }
+.bar-links a { text-decoration: none; color: var(--muted); }
+.bar-links a:hover { color: var(--text); }
+.lang {
+  font: 600 13px var(--body); color: var(--muted);
+  display: flex; padding: 3px; gap: 2px; cursor: pointer;
+  background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .16); border-radius: 999px;
+}
+.lang span { padding: 3px 9px; border-radius: 999px; }
+html[lang="en"] .lang [data-l="en"], html[lang="vi"] .lang [data-l="vi"] { background: var(--text); color: var(--ink); }
+@media (max-width: 640px) { .bar-links a:not([href^="http"]) { display: none; } }
+
+/* hero: the whole first screen is a desktop the notes live on */
+.hero {
+  position: relative;
+  min-height: max(100svh, 620px);
+  padding: calc(var(--bar-h) + clamp(40px, 12vh, 140px)) var(--gutter) 48px;
+  isolation: isolate;
+}
+.hero-copy { position: relative; z-index: 10; max-width: 34rem; pointer-events: none; }
+.hero-copy a, .hero-copy button { pointer-events: auto; }
+h1 {
+  margin: 0;
+  font-weight: 800;
+  font-size: clamp(2.6rem, 5.6vw, 4.9rem);
+  line-height: 1.02;
+  letter-spacing: -.035em;
+  text-wrap: balance;
+  text-shadow: 0 2px 30px rgba(20, 20, 60, .35);
+}
+.lede { margin: 26px 0 0; max-width: 30rem; font-size: clamp(1.05rem, 1.4vw, 1.2rem); color: var(--muted); }
+.cta { margin-top: 34px; }
+.cta-meta { margin: 12px 0 0; font-size: 14px; color: var(--faint); }
+
+/* the download button is a little rose note */
+.btn-note {
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 16px 26px 16px 22px;
+  font-weight: 700; font-size: 17px; text-decoration: none; color: #fff;
+  background: linear-gradient(180deg, var(--rose-deep) 0 13px, var(--rose) 13px);
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .35) inset, 0 14px 30px -10px rgba(120, 10, 50, .7);
+  transition: transform .18s cubic-bezier(.3, .7, .4, 1.4), box-shadow .18s;
+}
+.btn-note svg { width: 20px; height: 20px; fill: currentColor; }
+.btn-note:hover { transform: translateY(-2px) rotate(-1deg); box-shadow: 0 1px 0 rgba(255, 255, 255, .35) inset, 0 20px 34px -12px rgba(120, 10, 50, .75); }
+.btn-note:active { transform: translateY(1px); }
+
+.hint {
+  margin: 40px 0 0;
+  font: 1.45rem/1.25 var(--hand);
+  color: var(--pink);
+  max-width: 22rem;
+  transform: rotate(-2deg);
+  transform-origin: left;
+}
+.hint::before {
+  content: ""; display: inline-block; width: 30px; height: 18px; margin-right: 8px; vertical-align: -2px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 18'%3E%3Cpath d='M2 14 C8 4 18 3 26 7 M20 2 L27 7 L21 13' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 18'%3E%3Cpath d='M2 14 C8 4 18 3 26 7 M20 2 L27 7 L21 13' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* the 3D notes sit above the text, like windows on a desktop, but only catch the pointer on a note */
+.stage { position: absolute; inset: 0; z-index: 20; pointer-events: none; overflow: hidden; }
+.scene { display: block; width: 100%; height: 100%; }
+.note-grab, .note-grab * { cursor: grab !important; }
+.note-grabbing, .note-grabbing * { cursor: grabbing !important; user-select: none; }
+.scene-fallback[hidden] { display: none; }
+.scene-fallback { display: block; width: 100%; height: auto; margin-top: 40px; border-radius: 14px; }
+
+.bin {
+  position: absolute; right: 18px; bottom: 16px;
+  width: 112px; height: 124px;
+  transform: translateX(170%);
+  transition: transform .34s cubic-bezier(.34, 1.56, .64, 1);
+  filter: drop-shadow(0 0 0 rgba(72, 226, 207, 0));
+}
+.bin svg { width: 100%; height: 100%; overflow: visible; }
+.bin.open { transform: translateX(0); }
+.bin.hot { transform: translateX(0) scale(1.12); filter: drop-shadow(0 0 18px rgba(79, 224, 208, .9)); }
+.bin.gulp { animation: gulp .42s cubic-bezier(.3, .7, .4, 1.5); }
+@keyframes gulp { 40% { transform: scale(.9, 1.1); } 100% { transform: scale(1); } }
+
+.toast {
+  position: absolute; right: 24px; bottom: 150px; margin: 0;
+  font: 1.25rem var(--hand); color: var(--pink);
+  opacity: 0; transform: translateY(8px); transition: opacity .3s, transform .3s;
+}
+.toast.show { opacity: 1; transform: none; }
+
+/* sections */
+section:not(.hero) { padding: clamp(72px, 12vh, 140px) var(--gutter); }
+h2 {
+  margin: 0;
+  font-weight: 800; font-size: clamp(2rem, 3.6vw, 3rem); line-height: 1.08; letter-spacing: -.025em;
+  text-wrap: balance;
+}
+.section-lede { margin: 16px 0 0; color: var(--muted); max-width: 36rem; }
+
+.features { border-top: 1px solid rgba(255, 255, 255, .1); }
+.feature-list {
+  margin: 56px 0 0; display: grid; gap: 40px clamp(32px, 5vw, 80px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  max-width: 1120px;
+}
+.feature-list div { padding-left: 22px; border-left: 3px solid rgba(255, 255, 255, .14); }
+.feature-list .try { border-left-color: var(--pink); }
+.feature-list div:nth-child(2) { border-left-color: var(--sky); }
+.feature-list div:nth-child(3) { border-left-color: var(--blush); }
+.feature-list div:nth-child(4) { border-left-color: var(--azure); }
+.feature-list dt { font-weight: 700; font-size: 1.2rem; }
+.feature-list dd { margin: 6px 0 0; color: var(--muted); max-width: 30rem; }
+
+.shortcuts { display: grid; gap: 48px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 980px) {
+  .shortcuts { grid-template-columns: minmax(0, 5fr) minmax(0, 8fr); align-items: start; }
+  .shortcuts-head { position: sticky; top: 40px; }
+}
+.key-groups { display: grid; gap: 40px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); }
+.keys { width: 100%; border-collapse: collapse; }
+.keys caption { text-align: left; font: 1.5rem var(--hand); color: var(--pink); padding-bottom: 8px; }
+.keys td { padding: 11px 0; border-bottom: 1px solid rgba(255, 255, 255, .1); vertical-align: middle; }
+.keys td:first-child { white-space: nowrap; padding-right: 18px; width: 1%; }
+.keys td:last-child { color: var(--muted); font-size: 15.5px; }
+kbd {
+  display: inline-block; min-width: 1.9em; margin-right: 4px; padding: 2px 7px;
+  font: 600 13px/1.5 var(--body); text-align: center; color: var(--ink);
+  background: #f4f1ff; border-radius: 6px;
+  box-shadow: 0 -2px 0 rgba(31, 42, 92, .22) inset, 0 2px 5px rgba(10, 8, 40, .35);
+}
+
+.get { border-top: 1px solid rgba(255, 255, 255, .1); }
+.steps {
+  list-style: none; counter-reset: step; padding: 0; margin: 56px 0 0;
+  display: grid; gap: 40px clamp(32px, 4vw, 64px);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  max-width: 1120px;
+}
+.steps li { counter-increment: step; position: relative; padding-top: 58px; }
+.steps li::before {
+  content: counter(step);
+  position: absolute; top: 0; left: 0;
+  font: 3rem/1 var(--hand); color: var(--pink);
+}
+.steps h3 { margin: 0; font-size: 1.25rem; }
+.steps p { margin: 8px 0 0; color: var(--muted); max-width: 26rem; }
+.steps p b { color: var(--text); }
+.steps .btn-note { margin-top: 22px; }
+.steps kbd { font-size: 12px; }
+.release-meta:empty { display: none; }
+.alt { margin: 56px 0 0; color: var(--muted); }
+.alt + .alt { margin-top: 10px; }
+.alt a { color: var(--text); text-underline-offset: 3px; }
+.store-link { font-weight: 700; }
+
+.foot {
+  padding: 56px var(--gutter) 64px;
+  border-top: 1px solid rgba(255, 255, 255, .1);
+  color: var(--faint); font-size: 15px;
+}
+.foot p { margin: 0; }
+.signoff { font: 2rem var(--hand); color: var(--love); margin-bottom: 10px !important; transform: rotate(-2deg); transform-origin: left; text-shadow: 0 0 1px rgba(255,255,255,.2); filter: brightness(1.25); }
+.foot-links { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 14px; }
+.foot-links a { color: var(--muted); text-underline-offset: 3px; }
+
+/* phones: text on top, notes below it */
+@media (max-width: 760px) {
+  body { font-size: 16px; }
+  .hero { padding-top: calc(var(--bar-h) + 28px); min-height: max(100svh, 760px); }
+  .hint { font-size: 1.25rem; margin-top: 28px; }
+  .bin { width: 84px; height: 93px; }
+  .toast { bottom: 118px; right: 16px; }
+}

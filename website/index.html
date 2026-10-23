@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open Note: sticky notes for Windows</title>
+  <meta name="description" content="Small glass sticky notes for the Windows desktop. Free, no account, no ads. Works on Windows 10 and 11.">
+  <meta name="theme-color" content="#08646c">
+  <link rel="icon" type="image/png" href="assets/icon.png">
+  <meta property="og:title" content="Open Note: sticky notes for Windows">
+  <meta property="og:description" content="Small glass sticky notes for the Windows desktop. Free, no account, no ads.">
+  <meta property="og:image" content="assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,700;0,800;1,400&family=Patrick+Hand&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <a class="skip" href="#download" data-i18n="skip">Skip to download</a>
+
+  <header class="bar">
+    <a class="brand" href="#top" aria-label="Open Note">
+      <img src="assets/icon.png" alt="" width="34" height="34">
+      <span>Open Note</span>
+    </a>
+    <nav class="bar-links">
+      <a href="#features" data-i18n="navFeatures">Features</a>
+      <a href="#shortcuts" data-i18n="navShortcuts">Shortcuts</a>
+      <a href="https://github.com/nhaajtdajt/open-note">GitHub</a>
+      <button class="lang" type="button" aria-label="Tiếng Việt / English"><span data-l="en">EN</span><span data-l="vi">VI</span></button>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <h1 id="hero-title" data-i18n="heroTitle">Sticky notes that stay where you put&nbsp;them.</h1>
+        <p class="lede" data-i18n="heroLede">Open Note puts small glass notes on your Windows desktop. They save as you type and are still there after a restart. Free, no account, no ads.</p>
+        <div class="cta">
+          <a class="btn-note download-exe" href="https://github.com/nhaajtdajt/open-note/releases/latest">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3zM11.5 4.3 21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg>
+            <span data-i18n="download">Download for Windows</span>
+          </a>
+          <p class="cta-meta"><span data-i18n="req">Windows 10 or 11, 64-bit.</span> <span class="release-meta"></span></p>
+        </div>
+        <p class="hint" data-i18n="hint">Go on, grab a note. Shake it, throw it, or drop it in the bottom-right corner.</p>
+      </div>
+
+      <div class="stage" aria-hidden="true">
+        <canvas class="scene"></canvas>
+        <div class="bin">
+          <svg viewBox="0 0 112 124">
+            <defs>
+              <linearGradient id="binBody" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#48E2CF"/><stop offset=".55" stop-color="#1FBFB6"/><stop offset="1" stop-color="#0F96A6"/>
+              </linearGradient>
+            </defs>
+            <ellipse cx="56" cy="118" rx="40" ry="5" fill="#000" opacity=".22"/>
+            <path d="M30 36 l-6 -14 l14 4 l6 -12 l8 12 l10 -10 l4 14 l12 -6 l-2 14z" fill="#e2fbf7" stroke="#9fded5" stroke-width="1.2"/>
+            <path d="M58 30 l4 -16 l12 8 l10 -6 l-2 16z" fill="#ffdbe9" stroke="#efb3c9" stroke-width="1.2"/>
+            <path d="M14 34 L98 34 L88 114 Q87 118 83 118 L29 118 Q25 118 24 114 Z" fill="url(#binBody)"/>
+            <g stroke="#ffffff" stroke-opacity=".9" stroke-width="2" fill="none">
+              <path d="M34 42 L39 112 M47 42 L49 112 M56 42 V112 M65 42 L63 112 M78 42 L73 112"/>
+              <path d="M18 58 H94 M21 80 H91 M23 100 H89"/>
+            </g>
+            <rect x="9" y="28" width="94" height="10" rx="5" fill="#fff"/>
+            <text x="56" y="73" text-anchor="middle" font-family="Be Vietnam Pro, sans-serif" font-weight="700" font-size="12" fill="#fff" data-i18n="binLabel">Archive</text>
+          </svg>
+        </div>
+        <p class="toast" role="status" data-i18n="archived">Archived. Nothing is deleted.</p>
+      </div>
+      <img class="scene-fallback" src="assets/og.png" alt="Four Open Note sticky notes on a Windows desktop" width="1600" height="900" hidden>
+    </section>
+
+    <section id="features" class="features" aria-labelledby="features-title">
+      <h2 id="features-title" data-i18n="featTitle">What a note can do</h2>
+      <p class="section-lede" data-i18n="featLede">The first four work on the notes at the top of this page, so try them there.</p>
+      <dl class="feature-list">
+        <div class="try"><dt data-i18n="f1t">Star what matters</dt><dd data-i18n="f1d">Click the star in the corner. Starred notes go to the top of your list.</dd></div>
+        <div class="try"><dt data-i18n="f2t">Shake it to see behind</dt><dd data-i18n="f2d">Shake a note while you hold it and it fades, so you can read what's underneath. Let go and it comes back.</dd></div>
+        <div class="try"><dt data-i18n="f3t">Throw it out of the way</dt><dd data-i18n="f3d">Fling a note and it glides, bouncing off the edges of the screen.</dd></div>
+        <div class="try"><dt data-i18n="f4t">Drop it in the bin</dt><dd data-i18n="f4d">Drag a note to the bottom-right corner to archive it. Nothing is deleted; restore it from the notes list.</dd></div>
+        <div><dt data-i18n="f5t">Write the way you think</dt><dd data-i18n="f5d">Checklists, bullets, bold and italic, and screenshots pasted straight in.</dd></div>
+        <div><dt data-i18n="f6t">Hear it read aloud</dt><dd data-i18n="f6d">Any line read out with the Windows voices you already have. Works offline.</dd></div>
+        <div><dt data-i18n="f7t">Check your English</dt><dd data-i18n="f7d">Optional: get a corrected and a more natural version of a sentence, or turn Vietnamese into English, with your own free Google Gemini key.</dd></div>
+        <div><dt data-i18n="f8t">Stays out of the way</dt><dd data-i18n="f8d">Lives in the notification area and starts with Windows. About 44&nbsp;MB of memory, no CPU while idle, and your notes never leave your PC.</dd></div>
+      </dl>
+    </section>
+
+    <section id="shortcuts" class="shortcuts" aria-labelledby="shortcuts-title">
+      <div class="shortcuts-head">
+        <h2 id="shortcuts-title" data-i18n="keysTitle">One shortcut away, from any app</h2>
+        <p class="section-lede" data-i18n="keysLede">Forgot one? Press Ctrl+Alt+/ and a card with all of them appears in the middle of the screen.</p>
+      </div>
+      <div class="key-groups">
+        <table class="keys">
+          <caption data-i18n="anywhere">Anywhere</caption>
+          <tbody>
+            <tr><td><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>N</kbd></td><td data-i18n="kN">New note by the mouse pointer</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>H</kbd></td><td data-i18n="kH">Hide or show every note</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>P</kbd></td><td data-i18n="kP">Choose which notes stay on screen</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>M</kbd></td><td data-i18n="kM">All notes, search and archive</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>/</kbd></td><td data-i18n="kHelp">How to use</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>Q</kbd></td><td data-i18n="kQ">Quit Open Note completely</td></tr>
+          </tbody>
+        </table>
+        <table class="keys">
+          <caption data-i18n="inNote">In a note</caption>
+          <tbody>
+            <tr><td><kbd>Ctrl</kbd><kbd>Enter</kbd></td><td data-i18n="kCheck">Make a checklist item, or tick it</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>B</kbd> <kbd>Ctrl</kbd><kbd>I</kbd></td><td data-i18n="kBI">Bold and italic</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>S</kbd></td><td data-i18n="kStar">Star the note</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>R</kbd></td><td data-i18n="kR">Read aloud</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>G</kbd></td><td data-i18n="kG">Check with AI</td></tr>
+            <tr><td><kbd>Ctrl</kbd><kbd>D</kbd></td><td data-i18n="kD">Archive the note</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="download" class="get" aria-labelledby="get-title">
+      <h2 id="get-title" data-i18n="getTitle">Get Open Note</h2>
+      <ol class="steps">
+        <li>
+          <h3 data-i18n="s1t">Download the installer</h3>
+          <p><span data-i18n="s1d">One file with everything inside. You don't need to install anything else.</span> <span class="release-meta"></span></p>
+          <a class="btn-note download-exe" href="https://github.com/nhaajtdajt/open-note/releases/latest">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3zM11.5 4.3 21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg>
+            <span data-i18n="download">Download for Windows</span>
+          </a>
+        </li>
+        <li>
+          <h3 data-i18n="s2t">Run it</h3>
+          <p data-i18n="s2d">If Windows SmartScreen says it protected your PC, choose <b>More info</b>, then <b>Run anyway</b>. That appears because the app isn't code-signed yet.</p>
+        </li>
+        <li>
+          <h3 data-i18n="s3t">Write your first note</h3>
+          <p data-i18n="s3d">Press <kbd>Ctrl</kbd><kbd>Alt</kbd><kbd>N</kbd>. From now on Open Note starts with Windows; you can turn that off in its tray menu.</p>
+        </li>
+      </ol>
+      <p class="alt">
+        <span data-i18n="altZip">Rather not install anything?</span>
+        <a class="download-zip" href="https://github.com/nhaajtdajt/open-note/releases/latest" data-i18n="zipLink">Download the portable .zip</a>
+      </p>
+      <p class="alt store">
+        <a class="store-link" href="https://apps.microsoft.com/detail/9PBF0GXRK94Z" hidden data-i18n="storeLive">Get it from the Microsoft Store</a>
+        <span class="store-soon" data-i18n="storeSoon">Coming soon to the Microsoft Store.</span>
+      </p>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p class="signoff">love basics again</p>
+    <p data-i18n="license">Open Note is free and open source under the MIT license.</p>
+    <nav class="foot-links">
+      <a href="https://github.com/nhaajtdajt/open-note/blob/main/PRIVACY.md" data-i18n="privacy">Privacy</a>
+      <a href="https://github.com/nhaajtdajt/open-note" data-i18n="source">Source code</a>
+      <a href="https://github.com/nhaajtdajt/open-note/issues" data-i18n="issues">Report a problem</a>
+    </nav>
+  </footer>
+
+  <script src="main.js"></script>
+  <script type="module" src="scene.js"></script>
+</body>
+</html>
