@@ -5,14 +5,16 @@
     publish\OpenNote-<ver>-x64.msix          for the Microsoft Store (unsigned: the Store signs it)
     publish\OpenNote-Setup-<ver>-x64.exe     installer for GitHub Releases (needs Inno Setup 6)
 
-  Store identity values come from Partner Center > Product identity (docs\STORE-SUBMISSION.md):
-    .\build\package.ps1 -IdentityName 12345Name.OpenNote -Publisher "CN=..." -PublisherDisplayName "..."
+  Store identity (Partner Center > Product identity, see docs\STORE-SUBMISSION.md) is the default;
+  pass -IdentityName / -Publisher / -PublisherDisplayName / -DisplayName to use another product.
 #>
 param(
     [string]$Version,
-    [string]$IdentityName = "OpenNote.Dev",
-    [string]$Publisher = "CN=OpenNoteDev",
-    [string]$PublisherDisplayName = "Open Note contributors",
+    # Defaults are this project's Microsoft Store identity (Partner Center > Product identity; not secrets).
+    [string]$IdentityName = "Lovebasicsagain.OpenNoteStickyNotes",
+    [string]$Publisher = "CN=C3B8BC78-4DA3-401C-ABD2-A8AD58E13D75",
+    [string]$PublisherDisplayName = "Love basics again",
+    [string]$DisplayName = "Open Note Sticky Notes",   # the reserved Store name
     [switch]$SkipTests
 )
 $ErrorActionPreference = "Stop"
@@ -60,6 +62,7 @@ if (-not $makeappx) {
     Copy-Item (Join-Path $root "packaging\msix\Images") (Join-Path $stage "Images") -Recurse
     $manifest = (Get-Content (Join-Path $root "packaging\msix\AppxManifest.xml") -Raw).
         Replace('$(IdentityName)', $IdentityName).
+        Replace('$(DisplayName)', [System.Security.SecurityElement]::Escape($DisplayName)).
         Replace('$(Publisher)', [System.Security.SecurityElement]::Escape($Publisher)).
         Replace('$(PublisherDisplayName)', [System.Security.SecurityElement]::Escape($PublisherDisplayName)).
         Replace('$(Version)', "$Version.0")  # the Store needs the 4th part to be 0

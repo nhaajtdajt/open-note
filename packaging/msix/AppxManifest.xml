@@ -14,7 +14,7 @@
   <Identity Name="$(IdentityName)" Publisher="$(Publisher)" Version="$(Version)" ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Open Note</DisplayName>
+    <DisplayName>$(DisplayName)</DisplayName>
     <PublisherDisplayName>$(PublisherDisplayName)</PublisherDisplayName>
     <Logo>Images\StoreLogo.png</Logo>
     <Description>Lightweight sticky notes for the Windows desktop.</Description>

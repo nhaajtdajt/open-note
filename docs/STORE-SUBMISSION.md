@@ -26,21 +26,26 @@ Từ 09/2025, Microsoft bỏ phí đăng ký cho **cá nhân** (công ty vẫn t
 3. Xác minh danh tính: chụp **CCCD hoặc hộ chiếu** và **ảnh selfie**. Thường mất từ vài giờ đến vài ngày.
 4. Thông tin liên hệ hỗ trợ: Store yêu cầu một email hoặc website hỗ trợ. Có thể dùng `https://github.com/nhaajtdajt/open-note/issues`.
 
-## 3. Giữ tên và lấy thông tin định danh gói
+## 3. Tên đã giữ và thông tin định danh gói (đã làm xong, 23/10/2026)
 
-1. Partner Center → **Apps and games** → **New product** → **MSIX or PWA app** → nhập `Open Note` → **Reserve product name**.
-2. Mở app vừa tạo → **Product management → Product identity**. Chép 3 giá trị:
-   - `Package/Identity/Name`, ví dụ `12345nhaajtdajt.OpenNote`
-   - `Package/Identity/Publisher`, ví dụ `CN=XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX`
-   - `Package/Properties/PublisherDisplayName`
+Tên **"Open Note" đã có người giữ**, nên app được giữ dưới tên **Open Note Sticky Notes** (Store ID `9PBF0GXRK94Z`, trạng thái In draft, giữ trong 3 tháng: phải nộp trước khi hết hạn). Trên Start menu app vẫn hiện là "Open Note".
 
+| Giá trị trong manifest | Giá trị của app này |
+|---|---|
+| `Package/Identity/Name` | `Lovebasicsagain.OpenNoteStickyNotes` |
+| `Package/Identity/Publisher` | `CN=C3B8BC78-4DA3-401C-ABD2-A8AD58E13D75` |
+| `Package/Properties/PublisherDisplayName` | `Love basics again` |
+| Package Family Name | `Lovebasicsagain.OpenNoteStickyNotes_397akh0xk2en6` |
+| Liên kết Store | https://apps.microsoft.com/detail/9PBF0GXRK94Z |
+
+Các giá trị này không phải bí mật (chúng nằm trong gói MSIX công khai), và `build\package.ps1` đã dùng làm mặc định.
 ## 4. Tạo gói MSIX
 
 ```powershell
-.\build\package.ps1 -IdentityName "12345nhaajtdajt.OpenNote" -Publisher "CN=XXXXXXXX-..." -PublisherDisplayName "nhaajtdajt"
+.\build\package.ps1
 ```
 
-Kết quả: `publish\OpenNote-<phiên bản>-x64.msix`. Gói **không cần ký**: Store sẽ ký khi duyệt. Muốn ra bản mới thì tăng `<Version>` trong `src/OpenNote/OpenNote.csproj`.
+Kết quả: `publish\OpenNote-<phiên bản>-x64.msix` (đã dùng sẵn thông tin định danh ở mục 3). Gói **không cần ký**: Store sẽ ký khi duyệt. Muốn ra bản mới thì tăng `<Version>` trong `src/OpenNote/OpenNote.csproj`.
 
 Có thể để GitHub Actions build: tạo repository variables `STORE_IDENTITY_NAME`, `STORE_PUBLISHER`, `STORE_PUBLISHER_DISPLAY_NAME` (Settings → Secrets and variables → Actions → Variables), rồi đẩy một tag `v1.0.0`. File MSIX sẽ nằm trong GitHub Release.
 
