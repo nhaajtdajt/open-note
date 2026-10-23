@@ -38,8 +38,9 @@ if (-not $SkipTests) {
 
 Write-Host "== Publish $Version (self-contained win-x64)"
 if (Test-Path $app) { Remove-Item $app -Recurse -Force }
+# Quoted: PowerShell 7 (used by CI) drops the "-p:" of a bare -p:Name=value passed through $args.
 Invoke-Native dotnet publish $project -c Release -r win-x64 --self-contained true -o $app --nologo -v q `
-    -p:Version=$Version -p:DebugType=none -p:GenerateDocumentationFile=false
+    "-p:Version=$Version" "-p:DebugType=none" "-p:GenerateDocumentationFile=false"
 
 Write-Host "== Zip"
 $zip = Join-Path $out "OpenNote-$Version-win-x64.zip"
