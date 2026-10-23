@@ -36,6 +36,8 @@ On the free tier Google may use the text you check to improve its products, so d
 | Anywhere | `Ctrl+Alt+J` | **Show the saved selection** (only those notes). Press it again to hide everything. With no saved selection yet, it opens the picker. |
 | Anywhere | `Ctrl+Alt+M` | All notes: search, reopen, archive, restore, delete permanently. Press it again to close the list. |
 | Anywhere | `Ctrl+Alt+K` | Add or check your Gemini API keys for Check with AI |
+| Anywhere | `Ctrl+Alt+/` | **How to use:** a short card with the shortcuts, in the middle of the screen. Press it again, click or press Esc to close it. |
+| Anywhere | `Ctrl+Alt+Q` | **Quit Open Note completely:** saves everything and stops the app (it no longer runs in the background). Start it again from the Start menu. |
 | In a note | Click the header, or `F2` | Rename the note (Enter saves, Esc cancels) |
 | In a note | `/-` | Bullet `•` (type a slash, then a dash) |
 | In a note | `/>` | Checkbox `☐`. Type `//-` or `//>` to keep the characters as typed. |
@@ -79,7 +81,7 @@ On the free tier Google may use the text you check to improve its products, so d
 
 - Uses the voices installed in Windows (SAPI), so it works offline and sends nothing anywhere. List markers and pictures are skipped, and at most 1500 characters are read at a time.
 - English text uses an English voice (David, Zira or Mark on most PCs). Vietnamese text needs a Vietnamese voice: add one in Windows Settings → Time & language → Speech; without one, a message says so instead of reading it wrongly.
-- The speech engine is created only when you start reading. After the first use Windows keeps its speech library loaded, which adds about 12 MB until the app is restarted.
+- The speech engine is created only when you start reading and released when it finishes. After the first use Windows keeps its speech library and a few audio threads around, about 2 MB, until the app is restarted.
 
 ### AI check (Gemini, plus optional OpenAI-compatible services)
 
@@ -118,7 +120,9 @@ On the free tier Google may use the text you check to improve its products, so d
 - **Text format:** the editor is a RichTextBox for bold and italic only, but notes are stored as plain text with `**bold**` and `*italic*` markers, so `notes.json` stays readable and searchable.
   - Pasting keeps bold and italic and drops all other formatting.
   - Underline, alignment and Word-style lists are blocked, because they couldn't be saved.
-- **Footprint:** with 6 notes, about 46–50 MB private memory, and 2–3 MB in Task Manager's Memory column once idle. No CPU is used while idle.
+- **Footprint** (published build, measured): about 44 MB private memory with 1 note, 47 MB with 5 and 62 MB with 20 (about 0.9 MB per note); 2–8 MB in Task Manager's Memory column once idle; no CPU at all while idle. Notes appear about 1 second after start.
+  - **Nothing heavy at startup:** the Start menu shortcut is written only on the first run or when the app has moved, through the shell's own COM interface (writing it at every start through the scripting host cost ~3 MB, 130 handles and 200 ms). Read aloud uses plain COM automation instead of `dynamic`, so the C# runtime binder is never loaded.
+  - **Windows' own culture data (NLS) instead of ICU:** about 1 MB less memory and a lower peak at startup.
   - **Software rendering:** for small transparent windows this halves memory compared with GPU rendering.
   - **No WinForms:** the tray icon and monitor list use Win32 directly.
   - **ReadyToRun, no tiered JIT:** published builds are precompiled and run as they are, with no background re-compilation: about 10 MB less memory and half the startup CPU.

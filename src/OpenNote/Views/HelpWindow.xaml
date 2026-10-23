@@ -1,0 +1,63 @@
+<Window x:Class="OpenNote.Views.HelpWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:ClassModifier="internal"
+        Title="Open Note: how to use" Width="620" Height="453"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True" WindowStartupLocation="Manual"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display">
+
+    <Window.Resources>
+        <Style x:Key="Heading" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Ink Free, Segoe Print" />
+            <Setter Property="FontSize" Value="17" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="#FF7A2A22" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+    </Window.Resources>
+
+    <!-- An old sheet of paper with a heart wax seal, the shortcuts written on it. Click, Esc or
+         the shortcut again closes it. -->
+    <Grid x:Name="Root" RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+            <ScaleTransform x:Name="Pop" ScaleX="1" ScaleY="1" />
+        </Grid.RenderTransform>
+
+        <Image Source="/Assets/help-card.png" Stretch="Fill" RenderOptions.BitmapScalingMode="HighQuality" />
+
+        <!-- Title, beside the seal -->
+        <StackPanel Margin="146,80,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
+            <TextBlock Text="Open Note" FontFamily="Ink Free, Segoe Print" FontSize="30" FontWeight="Bold" Foreground="#FF6E2620" />
+            <TextBlock Text="your sticky notes, and the keys that move them" Margin="2,0,0,0"
+                       FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12.5" FontStyle="Italic" Foreground="#B33B2A1E" />
+        </StackPanel>
+
+        <!-- Two columns of shortcuts -->
+        <Grid Margin="84,158,40,0" VerticalAlignment="Top">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="18" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Anywhere" Style="{StaticResource Heading}" />
+                <StackPanel x:Name="Anywhere" Grid.IsSharedSizeScope="True" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+                <TextBlock Text="In a note" Style="{StaticResource Heading}" />
+                <StackPanel x:Name="InNote" Grid.IsSharedSizeScope="True" />
+            </StackPanel>
+        </Grid>
+
+        <!-- One line of tips, then how to close -->
+        <StackPanel Margin="84,0,40,30" VerticalAlignment="Bottom">
+            <TextBlock TextWrapping="Wrap" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12" Foreground="#FF3B2A1E" LineHeight="17">
+                Drag a note by its top bar · double-click the bar to resize · drop or throw it on the bin to archive · ☆ in the corner marks it important.
+            </TextBlock>
+            <TextBlock Text="Click anywhere or press Esc to close" Margin="0,8,0,0" HorizontalAlignment="Center"
+                       FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="11" FontStyle="Italic" Foreground="#993B2A1E" />
+        </StackPanel>
+    </Grid>
+
+</Window>

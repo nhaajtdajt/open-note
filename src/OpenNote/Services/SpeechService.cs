@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Threading;
 
@@ -6,7 +7,8 @@ namespace OpenNote.Services;
 /// <summary>
 /// Reads text aloud with the voices installed in Windows (SAPI), fully offline. The speech
 /// engine is created when you start reading and released as soon as it is done, so it costs
-/// nothing the rest of the time. It is used late-bound (COM), so no extra library is needed.
+/// nothing the rest of the time. It is called late-bound through COM automation (no extra
+/// library), with plain reflection rather than <c>dynamic</c>, which would load the C# binder.
 /// </summary>
 internal sealed class SpeechService
 {
@@ -17,7 +19,7 @@ internal sealed class SpeechService
     // Primary language ids of the languages we pick voices for.
     public const int English = 0x09, Vietnamese = 0x2A;
 
-    dynamic? _voice;
+    object? _voice;
     DispatcherTimer? _poll;
 
     public bool IsSpeaking => _voice is not null;
@@ -40,7 +42,7 @@ internal sealed class SpeechService
             var type = Type.GetTypeFromProgID("SAPI.SpVoice");
             if (type is null)
                 return "Windows speech isn't available on this PC.";
-            dynamic voice = Activator.CreateInstance(type)!;
+            var voice = Activator.CreateInstance(type)!;
 
             var chosen = FindVoice(voice, language);
             if (chosen is null)
@@ -53,13 +55,13 @@ internal sealed class SpeechService
             _voice = voice; // so Stop() releases it if speaking fails
             try
             {
-                voice.Voice = chosen;
+                Invoke(voice, "Voice", BindingFlags.PutRefDispProperty, chosen);
             }
             finally
             {
                 Release(chosen); // the engine keeps its own reference
             }
-            voice.Speak(text, SpeakAsync | SpeakPurgeBeforeSpeak);
+            Invoke(voice, "Speak", BindingFlags.InvokeMethod, text, SpeakAsync | SpeakPurgeBeforeSpeak);
 
             _poll ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
             _poll.Tick -= PollTick;
@@ -67,7 +69,7 @@ internal sealed class SpeechService
             _poll.Start();
             return null;
         }
-        catch (Exception ex) when (ex is COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException or InvalidCastException)
+        catch (Exception ex) when (IsComFailure(ex))
         {
             Stop();
             return "Couldn't read this text aloud.";
@@ -84,9 +86,9 @@ internal sealed class SpeechService
         _voice = null;
         try
         {
-            voice.Speak("", SpeakPurgeBeforeSpeak); // cut off whatever is being read
+            Invoke(voice, "Speak", BindingFlags.InvokeMethod, "", SpeakPurgeBeforeSpeak); // cut off whatever is being read
         }
-        catch (Exception ex) when (ex is COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+        catch (Exception ex) when (IsComFailure(ex))
         {
             // The engine is going away anyway.
         }
@@ -98,10 +100,21 @@ internal sealed class SpeechService
     {
         try
         {
-            if (_voice is { } voice && (int)voice.Status.RunningState != StateDone)
-                return;
+            if (_voice is { } voice)
+            {
+                var status = Invoke(voice, "Status", BindingFlags.GetProperty);
+                try
+                {
+                    if (Convert.ToInt32(Invoke(status!, "RunningState", BindingFlags.GetProperty)) != StateDone)
+                        return;
+                }
+                finally
+                {
+                    Release(status);
+                }
+            }
         }
-        catch (Exception ex) when (ex is COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+        catch (Exception ex) when (IsComFailure(ex) || ex is FormatException)
         {
             // Treat an unreadable state as finished.
         }
@@ -109,17 +122,17 @@ internal sealed class SpeechService
     }
 
     /// <summary>The first installed voice whose primary language is <paramref name="language"/>.</summary>
-    static object? FindVoice(dynamic voice, int language)
+    static object? FindVoice(object voice, int language)
     {
-        dynamic voices = voice.GetVoices();
+        var voices = Invoke(voice, "GetVoices", BindingFlags.InvokeMethod)!;
         try
         {
-            int count = voices.Count;
+            int count = Convert.ToInt32(Invoke(voices, "Count", BindingFlags.GetProperty));
             for (int i = 0; i < count; i++)
             {
-                dynamic candidate = voices.Item(i);
+                var candidate = Invoke(voices, "Item", BindingFlags.InvokeMethod, i)!;
                 // "409" or "409;9": the language id of the voice in hex.
-                string lang = (string)candidate.GetAttribute("Language");
+                string lang = Invoke(candidate, "GetAttribute", BindingFlags.InvokeMethod, "Language") as string ?? "";
                 if (int.TryParse(lang.Split(';')[0], System.Globalization.NumberStyles.HexNumber, null, out int lcid)
                     && (lcid & 0x3FF) == language)
                     return candidate;
@@ -132,6 +145,22 @@ internal sealed class SpeechService
             Release(voices);
         }
     }
+
+    /// <summary>One COM automation call (IDispatch), with the COM error unwrapped.</summary>
+    static object? Invoke(object target, string name, BindingFlags kind, params object?[] args)
+    {
+        try
+        {
+            return target.GetType().InvokeMember(name, kind, null, target, args);
+        }
+        catch (TargetInvocationException ex) when (ex.InnerException is not null)
+        {
+            throw ex.InnerException;
+        }
+    }
+
+    static bool IsComFailure(Exception ex) =>
+        ex is COMException or InvalidCastException or MissingMethodException or MissingMemberException or TargetInvocationException;
 
     static void Release(object? com)
     {

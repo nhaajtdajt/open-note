@@ -68,7 +68,8 @@ internal sealed class TrayService : IDisposable
         menu.Items.Add(Item("Reload settings", "", _app.ReloadSettings));
         menu.Items.Add(Item("Open data folder", "", () => Process.Start("explorer.exe", $"\"{RealDataDirectory()}\"")));
         menu.Items.Add(new Separator());
-        menu.Items.Add(Item("Exit", "", _app.ExitApp));
+        menu.Items.Add(Item("How to use…", s.HelpHotkey, _app.ToggleHelp));
+        menu.Items.Add(Item("Exit", s.QuitHotkey, _app.ExitApp));
 
         // Classic tray-menu rule: the menu must belong to the foreground window, otherwise it
         // won't close when you click elsewhere.

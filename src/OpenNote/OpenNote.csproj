@@ -26,10 +26,14 @@
 
   <ItemGroup>
     <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+    <!-- Use Windows' own culture data (NLS) instead of loading ICU: measured ~1 MB less private
+         memory and ~4 MB lower peak at startup. The app only runs on Windows. -->
+    <RuntimeHostConfigurationOption Include="System.Globalization.UseNls" Value="true" />
   </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\help-card.png" />
   </ItemGroup>
 
   <ItemGroup>

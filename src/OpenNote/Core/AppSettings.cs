@@ -26,6 +26,12 @@ public sealed class AppSettings
     /// <summary>Opens the window for adding Gemini API keys.</summary>
     public string ApiKeysHotkey { get; set; } = "Ctrl+Alt+K";
 
+    /// <summary>Shows the short guide to Open Note and its shortcuts; again (or Esc) to close it.</summary>
+    public string HelpHotkey { get; set; } = "Ctrl+Alt+/";
+
+    /// <summary>Saves everything and quits Open Note completely (it no longer runs in the background).</summary>
+    public string QuitHotkey { get; set; } = "Ctrl+Alt+Q";
+
     /// <summary>
     /// Set once the app has turned on "Start with Windows" by itself on its first run, so it never
     /// switches it back on after you turn it off.
@@ -37,6 +43,9 @@ public sealed class AppSettings
     /// keeps an existing shortcut up to date, so a shortcut you delete stays deleted.
     /// </summary>
     public bool StartMenuConfigured { get; set; }
+
+    /// <summary>The exe the Start menu shortcut was last pointed at; it is rewritten only when the app moves.</summary>
+    public string StartMenuShortcutTarget { get; set; } = "";
 
     /// <summary>Keep every note above other windows, so clicking into another app doesn't cover them.</summary>
     public bool KeepNotesOnTop { get; set; } = true;

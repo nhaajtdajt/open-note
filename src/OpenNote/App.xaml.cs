@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
@@ -18,6 +18,7 @@ public partial class App : Application
     HotkeyService? _hotkeys;
     TrayService? _tray;
     NotesListWindow? _notesList;
+    HelpWindow? _help;
     ApiKeysWindow? _apiKeys;
     DispatcherTimer? _trimTimer;
     string _dataDirectory = "";
@@ -172,6 +173,8 @@ public partial class App : Application
             _hotkeys.Register(s.ApiKeysHotkey, ShowApiKeys),
             _hotkeys.Register(s.PickNotesHotkey, _notes.PickSelection),
             _hotkeys.Register(s.SavedNotesHotkey, _notes.ToggleSavedSelection),
+            _hotkeys.Register(s.HelpHotkey, ToggleHelp),
+            _hotkeys.Register(s.QuitHotkey, ExitApp),
         }.Where(p => p is not null).ToList();
         if (extraWarning is not null)
             problems.Insert(0, extraWarning);
@@ -224,14 +227,14 @@ public partial class App : Application
                 StartupRegistration.Refresh();
             }
 
-            if (!settings.StartMenuConfigured)
+            // Writing a shortcut wakes up the Windows shell (handles, threads, memory), so it is only
+            // done on the first run and when the exe has moved, not at every start.
+            var exe = Environment.ProcessPath ?? "";
+            bool moved = !string.Equals(settings.StartMenuShortcutTarget, exe, StringComparison.OrdinalIgnoreCase);
+            if (!settings.StartMenuConfigured || (moved && StartMenuShortcut.Exists))
             {
                 if (StartMenuShortcut.Write())
-                    settings.Update(_dataDirectory, x => x.StartMenuConfigured = true);
-            }
-            else if (StartMenuShortcut.Exists)
-            {
-                StartMenuShortcut.Write(); // the exe may have moved
+                    settings.Update(_dataDirectory, x => (x.StartMenuConfigured, x.StartMenuShortcutTarget) = (true, exe));
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
@@ -297,7 +300,7 @@ public partial class App : Application
         (s.OpenCodeApiKey, s.OpenCodeModels, s.AiServices) = (fresh.OpenCodeApiKey, fresh.OpenCodeModels, fresh.AiServices);
         (s.PickNotesHotkey, s.SavedNotesHotkey) = (fresh.PickNotesHotkey, fresh.SavedNotesHotkey);
         (s.KeepNotesOnTop, s.NoteEffects) = (fresh.KeepNotesOnTop, fresh.NoteEffects);
-        s.ApiKeysHotkey = fresh.ApiKeysHotkey;
+        (s.ApiKeysHotkey, s.HelpHotkey, s.QuitHotkey) = (fresh.ApiKeysHotkey, fresh.HelpHotkey, fresh.QuitHotkey);
         _notes.RefreshTopmost();
         Ai = s.CreateAiCorrector();
         _hotkeys!.UnregisterAll();
@@ -319,6 +322,24 @@ public partial class App : Application
         _trimTimer.Stop();
         _trimTimer.Interval = delay;
         _trimTimer.Start();
+    }
+
+    /// <summary>The guide card in the middle of the screen; the shortcut again closes it.</summary>
+    internal void ToggleHelp()
+    {
+        if (_help is not null)
+        {
+            _help.Close();
+            return;
+        }
+        _help = new HelpWindow(_notes!.Settings);
+        _help.Closed += (_, _) =>
+        {
+            _help = null;
+            TrimSoon(TimeSpan.FromSeconds(2)); // the paper picture is only kept while the card is open
+        };
+        _help.Show();
+        _help.Activate();
     }
 
     internal void ExitApp()
