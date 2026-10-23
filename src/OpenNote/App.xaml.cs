@@ -165,9 +165,10 @@ public partial class App : Application
             _hotkeys!.Register(s.NewNoteHotkey, () => _notes.CreateNote()),
             _hotkeys.Register(s.ToggleAllHotkey, () =>
             {
-                // Nothing on the desktop (every note is hidden or archived): show the list so the key never feels dead.
+                // Nothing on the desktop (every note is closed or archived): say so, rather than open
+                // the notes list, which belongs to its own shortcut.
                 if (!_notes.ToggleAll())
-                    ShowNotesList();
+                    _tray!.ShowInfo("No notes on the desktop", $"{s.NewNoteHotkey}: new note\n{s.NotesListHotkey}: all notes and archive");
             }),
             _hotkeys.Register(s.NotesListHotkey, ToggleNotesList),
             _hotkeys.Register(s.ApiKeysHotkey, ShowApiKeys),
@@ -189,10 +190,13 @@ public partial class App : Application
             ShowNotesList();
     }
 
-    /// <summary>The list shortcut: opens the list, and closes it when it is already open.</summary>
+    /// <summary>
+    /// The list shortcut: opens the list, and closes it when it is the window in front. A list
+    /// left open behind other windows is brought to the front instead of being closed unseen.
+    /// </summary>
     internal void ToggleNotesList()
     {
-        if (_notesList is { IsVisible: true })
+        if (_notesList is { IsVisible: true, IsActive: true })
             _notesList.Close();
         else
             ShowNotesList();

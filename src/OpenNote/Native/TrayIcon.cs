@@ -13,7 +13,7 @@ internal sealed class TrayIcon : IDisposable
     const int WM_LBUTTONUP = 0x0202, WM_RBUTTONUP = 0x0205, WM_CONTEXTMENU = 0x007B;
     const uint NIM_ADD = 0, NIM_MODIFY = 1, NIM_DELETE = 2;
     const uint NIF_MESSAGE = 0x1, NIF_ICON = 0x2, NIF_TIP = 0x4, NIF_INFO = 0x10;
-    const uint NIIF_WARNING = 0x2;
+    const uint NIIF_INFO = 0x1, NIIF_WARNING = 0x2;
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct NOTIFYICONDATAW
@@ -71,12 +71,16 @@ internal sealed class TrayIcon : IDisposable
     /// <summary>Handle of the tray's hidden window, used to take foreground before showing a menu.</summary>
     public nint Handle => _window.Handle;
 
-    public void ShowWarning(string title, string text)
+    public void ShowWarning(string title, string text) => ShowBalloon(title, text, NIIF_WARNING);
+
+    public void ShowInfo(string title, string text) => ShowBalloon(title, text, NIIF_INFO);
+
+    void ShowBalloon(string title, string text, uint icon)
     {
         var data = Data(NIF_INFO);
         data.szInfoTitle = Truncate(title, 63);
         data.szInfo = Truncate(text, 255);
-        data.dwInfoFlags = NIIF_WARNING;
+        data.dwInfoFlags = icon;
         Shell_NotifyIconW(NIM_MODIFY, ref data);
     }
 

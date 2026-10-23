@@ -31,10 +31,10 @@ On the free tier Google may use the text you check to improve its products, so d
 | Where | Shortcut | What it does |
 |---|---|---|
 | Anywhere | `Ctrl+Alt+N` | New note, placed by the mouse pointer |
-| Anywhere | `Ctrl+Alt+H` | **Hide all notes / show all notes.** Hides every note when all are showing; shows them all otherwise, including the rest when only your saved selection is showing. |
-| Anywhere | `Ctrl+Alt+P` | **Choose notes to keep.** Shows all notes and opens a picker: arrows move, `Space` or a click selects, `Enter` keeps the selected notes and hides the rest, `Esc` cancels. The choice is saved as the one saved selection. |
+| Anywhere | `Ctrl+Alt+H` | **Hide all notes / show all notes.** Hides every note when all are showing; shows them all otherwise, including the rest when only your saved selection is showing. With no note on the desktop it only shows a short tip (it doesn't open the notes list). |
+| Anywhere | `Ctrl+Alt+P` | **Choose notes to keep.** Shows all notes and opens a picker: arrows move, `Space` or a click selects, `Enter` (or `Ctrl+Alt+P` again) keeps the selected notes, hides the rest and closes the picker, `Esc` cancels. The choice is saved as the one saved selection. |
 | Anywhere | `Ctrl+Alt+J` | **Show the saved selection** (only those notes). Press it again to hide everything. With no saved selection yet, it opens the picker. |
-| Anywhere | `Ctrl+Alt+M` | All notes: search, reopen, archive, restore, delete permanently. Press it again to close the list. |
+| Anywhere | `Ctrl+Alt+M` | All notes: search, reopen, archive, restore, delete permanently. Press it again to close the list (if the list is behind other windows, it comes to the front instead). |
 | Anywhere | `Ctrl+Alt+K` | Add or check your Gemini API keys for Check with AI |
 | Anywhere | `Ctrl+Alt+/` | **How to use:** a short card with the shortcuts, in the middle of the screen. Press it again, click or press Esc to close it. |
 | Anywhere | `Ctrl+Alt+Q` | **Quit Open Note completely:** saves everything and stops the app (it no longer runs in the background). Start it again from the Start menu. |

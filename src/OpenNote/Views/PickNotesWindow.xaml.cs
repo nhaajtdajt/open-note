@@ -43,8 +43,23 @@ internal partial class PickNotesWindow : Window
         };
     }
 
-    /// <summary>Raised with the chosen notes when Enter is pressed.</summary>
+    /// <summary>Raised with the chosen notes when Enter (or the picker's shortcut again) is pressed.</summary>
     public event Action<IReadOnlyList<Note>>? Confirmed;
+
+    /// <summary>Keeps the selected notes and closes; with nothing selected, asks for a choice instead.</summary>
+    public void Confirm()
+    {
+        var chosen = List.SelectedItems.OfType<NoteItem>().Select(i => i.Note).ToList();
+        if (chosen.Count == 0)
+        {
+            Warning.Visibility = Visibility.Visible;
+            Activate();
+            return;
+        }
+        _confirmed = true;
+        Confirmed?.Invoke(chosen);
+        Close();
+    }
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -61,17 +76,7 @@ internal partial class PickNotesWindow : Window
         }
         else if (e.Key == Key.Enter)
         {
-            var chosen = List.SelectedItems.OfType<NoteItem>().Select(i => i.Note).ToList();
-            if (chosen.Count == 0)
-            {
-                Warning.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                _confirmed = true;
-                Confirmed?.Invoke(chosen);
-                Close();
-            }
+            Confirm();
             e.Handled = true;
         }
         else if (e.Key == Key.A && Keyboard.Modifiers == ModifierKeys.Control)

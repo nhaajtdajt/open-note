@@ -30,6 +30,8 @@ internal sealed class TrayService : IDisposable
 
     public void ShowWarning(string title, string text) => _icon.ShowWarning(title, text);
 
+    public void ShowInfo(string title, string text) => _icon.ShowInfo(title, text);
+
     /// <summary>Built on demand and dropped when closed, so it costs nothing while unused.</summary>
     void ShowMenu()
     {

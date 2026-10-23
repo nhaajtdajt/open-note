@@ -231,14 +231,14 @@ internal sealed class NoteManager
     }
 
     /// <summary>
-    /// Shows every note and asks which ones to keep. Enter saves that choice as the (single)
-    /// saved selection and hides the others.
+    /// Shows every note and asks which ones to keep. Enter, or the same shortcut again, saves
+    /// that choice as the (single) saved selection, hides the others and closes the picker.
     /// </summary>
     public void PickSelection()
     {
         if (_picker is not null)
         {
-            _picker.Activate();
+            _picker.Confirm();
             return;
         }
         if (!BringAllToFront())
