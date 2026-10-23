@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -64,7 +65,13 @@ internal partial class NoteWindow : Window
         TitleEditor.PreviewKeyDown += TitleEditor_PreviewKeyDown;
         TitleEditor.LostKeyboardFocus += (_, _) => EndTitleEdit(commit: true);
 
-        LocationChanged += (_, _) => SaveBounds();
+        LocationChanged += (_, _) =>
+        {
+            SaveBounds();
+            OnDragMoved();
+        };
+        PreviewMouseDown += (_, _) => StopMotion(); // grabbing a note that is still sliding stops it
+        Closed += (_, _) => EndMotion();
         SizeChanged += (_, _) => SaveBounds();
         Activated += (_, _) =>
         {
@@ -308,6 +315,72 @@ internal partial class NoteWindow : Window
         Editor.Document.LineHeight = size * 1.45;
         Editor.Document.LineStackingStrategy = LineStackingStrategy.BlockLineHeight;
         TitleText.FontSize = TitleEditor.FontSize = Math.Max(12, size * 0.95);
+
+        // Creation date and time: in the note's font, but small enough to stay out of the way.
+        Footer.FontFamily = family;
+        Footer.FontSize = Math.Clamp(size * 0.86, 10.5, 14);
+        Footer.Text = Note.CreatedUtc.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
+    }
+
+    /// <summary>The star in the corner: marks the note as important, or takes the mark off.</summary>
+    void ToggleStar()
+    {
+        Note.IsImportant = !Note.IsImportant;
+        UpdateChrome();
+        _manager.NoteEdited(Note);
+    }
+
+    bool? _starShown;
+
+    /// <summary>
+    /// Not marked, the star is a plain upright outline inside the corner. Marking it lights it up,
+    /// tilts it and flies it out to the corner, where it overlaps the edge of the note (a little
+    /// overshoot as it lands, and a flash of light); un-marking takes it back, quicker.
+    /// </summary>
+    void ApplyStar(bool animate)
+    {
+        bool on = Note.IsImportant;
+        if (_starShown == on)
+            return;
+        bool first = _starShown is null;
+        _starShown = on;
+        animate = animate && !first && SystemParameters.ClientAreaAnimation;
+
+        var land = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.8 };
+        int ms = on ? 340 : 220;
+        IEasingFunction move = on ? land : EaseOut;
+        StarTo(StarScale, ScaleTransform.ScaleXProperty, on ? 1 : 0.68, ms, move, animate);
+        StarTo(StarScale, ScaleTransform.ScaleYProperty, on ? 1 : 0.68, ms, move, animate);
+        StarTo(StarTurn, RotateTransform.AngleProperty, on ? 12 : 0, ms, move, animate);
+        StarTo(StarMove, TranslateTransform.XProperty, on ? 0 : 8, ms - 40, EaseOut, animate);
+        StarTo(StarMove, TranslateTransform.YProperty, on ? 0 : 10, ms - 40, EaseOut, animate);
+        StarTo(StarOn, OpacityProperty, on ? 1 : 0, on ? 160 : 140, EaseOut, animate);
+        StarTo(StarOutline, OpacityProperty, on ? 0 : 0.7, on ? 120 : 200, EaseOut, animate);
+
+        if (on && animate)
+        {
+            // the flash: grows and fades where the star lands
+            StarTo(FlashScale, ScaleTransform.ScaleXProperty, 1.1, 460, EaseOut, true, from: 0.5);
+            StarTo(FlashScale, ScaleTransform.ScaleYProperty, 1.1, 460, EaseOut, true, from: 0.5);
+            var flash = new DoubleAnimationUsingKeyFrames();
+            flash.KeyFrames.Add(new LinearDoubleKeyFrame(1, TimeSpan.FromMilliseconds(110)));
+            flash.KeyFrames.Add(new EasingDoubleKeyFrame(0, TimeSpan.FromMilliseconds(460), EaseOut));
+            StarFlash.BeginAnimation(OpacityProperty, flash);
+        }
+    }
+
+    static void StarTo(IAnimatable target, DependencyProperty property, double to, int ms, IEasingFunction ease, bool animate, double? from = null)
+    {
+        if (!animate)
+        {
+            target.BeginAnimation(property, null);
+            ((DependencyObject)target).SetValue(property, to);
+            return;
+        }
+        var animation = new DoubleAnimation(to, TimeSpan.FromMilliseconds(ms)) { EasingFunction = ease };
+        if (from is { } start)
+            animation.From = start;
+        target.BeginAnimation(property, animation);
     }
 
     static SolidColorBrush Brush(byte alpha, (byte R, byte G, byte B) c)
@@ -324,7 +397,8 @@ internal partial class NoteWindow : Window
     void UpdateChrome(bool animate = true)
     {
         bool engaged = IsActive || IsMouseOver;
-        FadeTo(AddButton, engaged ? 0.75 : 0, animate);
+        ApplyStar(animate);
+        StarButton.ToolTip = Note.IsImportant ? "Important. Click to remove the star (Ctrl+Shift+S)" : "Mark as important (Ctrl+Shift+S)";
         FadeTo(MenuButton, engaged ? 0.75 : 0, animate);
         FadeTo(CloseButton, engaged ? 0.75 : 0, animate);
         bool saved = _manager.IsInSelection(Note);
@@ -647,7 +721,15 @@ internal partial class NoteWindow : Window
         else if (mods == ModifierKeys.Control)
             e.Handled = HandleCtrlShortcut(key);
         else if (mods == (ModifierKeys.Control | ModifierKeys.Shift))
-            e.Handled = BlocksRichShortcut(key);
+        {
+            if (key == Key.S)
+            {
+                ToggleStar();
+                e.Handled = true;
+            }
+            else
+                e.Handled = BlocksRichShortcut(key);
+        }
         else if (mods == ModifierKeys.None && key == Key.F2)
         {
             BeginTitleEdit();

@@ -73,8 +73,11 @@ internal partial class NoteWindow
         if (TitleEditor.IsVisible)
             return;
         var before = Win32.GetBounds(_hwnd);
+        BeginDrag();
         DragMove(); // returns when the button is released
-        if (Win32.GetBounds(_hwnd) == before)
+        bool moved = Win32.GetBounds(_hwnd) != before;
+        EndDrag(moved);
+        if (!moved)
             ScheduleRename();
     }
 
@@ -84,7 +87,7 @@ internal partial class NoteWindow
         e.Handled = true;
     }
 
-    void AddButton_Click(object sender, RoutedEventArgs e) => _manager.CreateNote(near: this);
+    void StarButton_Click(object sender, RoutedEventArgs e) => ToggleStar();
     void PinButton_Click(object sender, RoutedEventArgs e) => TogglePin();
     void MenuButton_Click(object sender, RoutedEventArgs e) => OpenMenu(MenuButton);
     void CloseButton_Click(object sender, RoutedEventArgs e) => _manager.CloseNote(Note);

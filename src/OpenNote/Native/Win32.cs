@@ -11,6 +11,8 @@ internal static class Win32
     public const long WS_MINIMIZEBOX = 0x00020000;
     public const long WS_EX_TOOLWINDOW = 0x00000080;
     public const long WS_EX_APPWINDOW = 0x00040000;
+    public const long WS_EX_TRANSPARENT = 0x00000020;
+    public const long WS_EX_NOACTIVATE = 0x08000000;
 
     public const uint SWP_NOSIZE = 0x0001;
     public const uint SWP_NOMOVE = 0x0002;
@@ -83,6 +85,25 @@ internal static class Win32
         SetWindowLongPtr(hwnd, GWL_STYLE, (nint)style);
 
         SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
+
+    /// <summary>
+    /// An overlay the mouse passes straight through and that never takes focus: not in Alt+Tab,
+    /// not on the taskbar, and invisible to clicks.
+    /// </summary>
+    public static void MakeOverlayWindow(nint hwnd)
+    {
+        long ex = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+        ex = (ex | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT) & ~WS_EX_APPWINDOW;
+        SetWindowLongPtr(hwnd, GWL_EXSTYLE, (nint)ex);
+        SetWindowPos(hwnd, 0, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+    }
+
+    /// <summary>Moves a window to <paramref name="x"/>, <paramref name="y"/> and puts it right behind <paramref name="behind"/>.</summary>
+    public static void MoveBehind(nint hwnd, nint behind, int x, int y, int width = 0, int height = 0)
+    {
+        uint flags = SWP_NOACTIVATE | (width == 0 ? SWP_NOSIZE : 0);
+        SetWindowPos(hwnd, behind, x, y, width, height, flags);
     }
 
     /// <summary>

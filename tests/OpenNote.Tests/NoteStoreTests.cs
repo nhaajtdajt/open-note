@@ -92,6 +92,17 @@ public sealed class NoteStoreTests : IDisposable
     }
 
     [Fact]
+    public void TheStar_IsOffByDefault_AndIsRemembered()
+    {
+        var store = new NoteStore(_dir);
+        store.Save(new StoreData { Notes = [new Note { Text = "plain" }, new Note { Text = "matters", IsImportant = true }] });
+        var notes = new NoteStore(_dir).Load().Notes;
+        Assert.False(new Note().IsImportant);
+        Assert.False(notes[0].IsImportant);
+        Assert.True(notes[1].IsImportant);
+    }
+
+    [Fact]
     public void Save_KeepsNonAsciiReadableInFile()
     {
         var store = new NoteStore(_dir);

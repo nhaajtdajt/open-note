@@ -43,6 +43,7 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="34" />
                 <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
             <!-- Header: drag to move, click to rename, right-click for options. -->
@@ -57,8 +58,8 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Orientation="Horizontal">
-                        <Button x:Name="AddButton" Style="{StaticResource IconButton}" Content="&#xE710;"
-                                Click="AddButton_Click" ToolTip="New note (Ctrl+N)" />
+                        <!-- room for the star badge that overlaps the corner -->
+                        <Border Width="19" />
                         <TextBlock x:Name="LockGlyph" Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="10"
                                    Margin="2,0,2,0" VerticalAlignment="Center" Visibility="Collapsed"
                                    ToolTip="Locked. Ctrl+L to unlock." />
@@ -91,7 +92,7 @@
             </Border>
 
             <!-- Placeholder sits behind the transparent editor and shows only while the note is empty. -->
-            <TextBlock x:Name="Placeholder" Grid.Row="1" Text="Write a note…   /> box   /- bullet" Margin="15,10,14,0"
+            <TextBlock x:Name="Placeholder" Grid.Row="1" Text="love basics again" Margin="15,10,14,0"
                        IsHitTestVisible="False" Opacity="0.45" TextTrimming="CharacterEllipsis" />
 
             <!-- Rich text only for bold and italic; everything else is kept plain (see RichText). -->
@@ -100,7 +101,7 @@
             <RichTextBox x:Name="Editor" Grid.Row="1" xml:lang="en-US" UndoLimit="100"
                          AcceptsReturn="True" AcceptsTab="True"
                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                         Background="Transparent" BorderThickness="0" Padding="11,9,6,12"
+                         Background="Transparent" BorderThickness="0" Padding="11,9,6,6"
                          SpellCheck.IsEnabled="False" SelectionOpacity="0.35"
                          Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
                          CaretBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}">
@@ -123,6 +124,10 @@
                 </RichTextBox.ContextMenu>
                 <FlowDocument PagePadding="0" />
             </RichTextBox>
+
+            <!-- When the note was created: small and quiet. -->
+            <TextBlock x:Name="Footer" Grid.Row="2" Margin="15,0,14,7" Opacity="0.5" FontSize="10.5"
+                       IsHitTestVisible="False" TextTrimming="CharacterEllipsis" />
         </Grid>
 
         <!-- 4. Edges: a dark hairline defines the glass on light backgrounds, and an inner rim
@@ -137,5 +142,63 @@
                 </LinearGradientBrush>
             </Border.BorderBrush>
         </Border>
-    </Grid>
+
+        <!-- 5. The star. Not marked: a plain upright outline star inside the corner, always visible. Marked: it
+                lights up, tilts and flies to the corner as a solid navy star with a white halo that overlaps the
+                note's edge, so you can see at a glance which notes matter. The button sits where the marked star ends up. -->
+        <Button x:Name="StarButton" Width="38" Height="38" Margin="-12,-12,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+                Focusable="False" Cursor="Arrow" Click="StarButton_Click">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Grid Background="Transparent">
+                        <ContentPresenter x:Name="Presenter" HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Presenter" Property="RenderTransform">
+                                <Setter.Value>
+                                    <ScaleTransform ScaleX="1.14" ScaleY="1.14" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+            <Grid Width="31" Height="31">
+                <!-- a flash of light when the star is marked -->
+                <Ellipse x:Name="StarFlash" Width="34" Height="34" Opacity="0" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False">
+                    <Ellipse.RenderTransform>
+                        <ScaleTransform x:Name="FlashScale" ScaleX="0.5" ScaleY="0.5" />
+                    </Ellipse.RenderTransform>
+                    <Ellipse.Fill>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#CCFFF3A8" Offset="0" />
+                            <GradientStop Color="#66FFD84A" Offset="0.5" />
+                            <GradientStop Color="#00FFD84A" Offset="1" />
+                        </RadialGradientBrush>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <Grid x:Name="StarVisual" RenderTransformOrigin="0.5,0.5">
+                    <Grid.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="StarScale" ScaleX="0.68" ScaleY="0.68" />
+                            <RotateTransform x:Name="StarTurn" Angle="0" />
+                            <TranslateTransform x:Name="StarMove" X="8" Y="10" />
+                        </TransformGroup>
+                    </Grid.RenderTransform>
+                    <!-- not marked: outline in the note's ink colour -->
+                    <Path x:Name="StarOutline" Data="M 10,1.7 L 12.65,7.26 L 18.75,8.06 L 14.28,12.29 L 15.41,18.34 L 10,15.4 L 4.59,18.34 L 5.72,12.29 L 1.25,8.06 L 7.35,7.26 Z" Stretch="Uniform" Margin="3" Opacity="0.7"
+                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
+                          StrokeThickness="1.9" StrokeLineJoin="Round" Fill="Transparent" />
+                    <!-- marked: white halo and a solid navy star -->
+                    <Grid x:Name="StarOn" Opacity="0">
+                        <Grid.Effect>
+                            <DropShadowEffect BlurRadius="4" ShadowDepth="1.5" Direction="270" Opacity="0.35" RenderingBias="Performance" />
+                        </Grid.Effect>
+                        <Path Data="M 10,1.7 L 12.65,7.26 L 18.75,8.06 L 14.28,12.29 L 15.41,18.34 L 10,15.4 L 4.59,18.34 L 5.72,12.29 L 1.25,8.06 L 7.35,7.26 Z" Stretch="Uniform" Margin="1" Fill="White" Stroke="White" StrokeThickness="4.2" StrokeLineJoin="Round" />
+                        <Path Data="M 10,1.7 L 12.65,7.26 L 18.75,8.06 L 14.28,12.29 L 15.41,18.34 L 10,15.4 L 4.59,18.34 L 5.72,12.29 L 1.25,8.06 L 7.35,7.26 Z" Stretch="Uniform" Margin="3" Fill="#FF1F2A5C" Stroke="#FF1F2A5C" StrokeThickness="1.8" StrokeLineJoin="Round" />
+                    </Grid>
+                </Grid>
+            </Grid>
+        </Button>    </Grid>
 </Window>

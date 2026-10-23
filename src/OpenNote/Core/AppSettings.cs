@@ -32,8 +32,21 @@ public sealed class AppSettings
     /// </summary>
     public bool AutoStartConfigured { get; set; }
 
+    /// <summary>
+    /// Set once the app has put itself in the Start menu on its first run. After that it only
+    /// keeps an existing shortcut up to date, so a shortcut you delete stays deleted.
+    /// </summary>
+    public bool StartMenuConfigured { get; set; }
+
     /// <summary>Keep every note above other windows, so clicking into another app doesn't cover them.</summary>
     public bool KeepNotesOnTop { get; set; } = true;
+
+    /// <summary>
+    /// Motion while you drag a note: shake it and it fades away and comes back, throw it and it
+    /// slides and bounces off the screen edges, and an archive bin slides in from the right.
+    /// Off, notes just move. Also off when Windows' "Show animations" is off.
+    /// </summary>
+    public bool NoteEffects { get; set; } = true;
 
     public string DefaultColor { get; set; } = Palette.Default.Hex;
     public double DefaultOpacity { get; set; } = 0.9;

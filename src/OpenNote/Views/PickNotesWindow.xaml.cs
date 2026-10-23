@@ -13,7 +13,7 @@ namespace OpenNote.Views;
 /// </summary>
 internal partial class PickNotesWindow : Window
 {
-    bool _confirmed;
+    bool _confirmed, _closing;
 
     public PickNotesWindow(IEnumerable<Note> notes, IReadOnlySet<Guid> preselected)
     {
@@ -33,9 +33,12 @@ internal partial class PickNotesWindow : Window
             else
                 List.Focus();
         };
+        // Clicking elsewhere cancels. Closing (Esc, Enter) deactivates the window too, and calling
+        // Close() again while it is already closing throws.
+        Closing += (_, _) => _closing = true;
         Deactivated += (_, _) =>
         {
-            if (!_confirmed)
+            if (!_confirmed && !_closing)
                 Close();
         };
     }

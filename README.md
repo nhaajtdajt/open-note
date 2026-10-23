@@ -56,6 +56,11 @@ On the free tier Google may use the text you check to improve its products, so d
 - **Rename a note:** click the header without dragging (it starts after a moment, in case you meant to double-click).
 - **Shrink and restore a note:** double-click the header. A note you made bigger shrinks to the normal size and remembers how big it was; double-click again to get that size back. If you resize it by hand while it is shrunk, the new size becomes the one remembered. Every note's size and position are saved and restored on restart.
 - **Resize a note:** drag any edge.
+- **Note effects (while dragging a note by its header):**
+  - **Archive bin:** drag a note a little and a paper basket (dark, with a blue grid, full of crumpled paper) jumps in from the right edge, in the bottom-right corner of the screen you are on. Its paper heaps up when a note is over it. Drop the note on it, or throw it at it, and the note is drawn in and **archived** (not deleted: restore it from All notes → Archive, and it comes back where it was before the drag). The bin never takes clicks, and it slides away when you let go.
+  - **Throw:** let go while the note is still moving fast and it keeps sliding, slowing down, and bounces off the four edges of the screen. A gentle drop leaves it exactly where you put it. Grab it again at any time to stop it.
+  - **Shake:** shake a note hard from side to side and it fades a little more with every shake, then disappears for a moment and comes back where you hold it. It is only a visual effect: the note and its text are not touched. If you stop shaking early, it comes back by itself.
+  - Turn all of this off with tray → **Note effects** (or `"noteEffects": false` in `settings.json`). It is also off while Windows' *Show animations* setting is off.
 - **More options:** right-click the header or use the `⋯` button for color, glass tint, font (Mono/Consolas, Sans, Handwriting), lock and more.
 - **Tray icon:** a left click brings all notes to the front. The right-click menu has the rest.
 - **Pictures:** paste with `Ctrl+V` (a Win+Shift+S screenshot, an image copied from a browser, or image files copied in Explorer), or drag image files onto a note.

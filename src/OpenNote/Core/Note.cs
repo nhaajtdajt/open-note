@@ -60,6 +60,10 @@ public sealed class Note
     public int RestoreHeight { get; set; }
 
     public bool IsLocked { get; set; }
+
+    /// <summary>Marked with the star in the top-left corner: a note that matters. Listed first in the notes list.</summary>
+    public bool IsImportant { get; set; }
+
     public NoteState State { get; set; } = NoteState.Visible;
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime ModifiedUtc { get; set; } = DateTime.UtcNow;

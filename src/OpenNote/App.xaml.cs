@@ -196,23 +196,25 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// Ready to go without any setup: the first run turns on "Start with Windows" (a Store
-    /// package does this through its manifest instead), and every run keeps the entry pointing at
-    /// the current exe.
+    /// Ready to go without any setup. The first run turns on "Start with Windows" and puts Open
+    /// Note in the Start menu (so it can be found by name); every run keeps both pointing at the
+    /// current exe. A Store package gets both from its manifest instead.
     /// </summary>
     void ConfigureStartWithWindows(AppSettings settings)
     {
-        // A Store package does this through its manifest; a copy run on another data folder
-        // (--data, e.g. a portable or test copy) must not take over the main copy's entry.
+        // A copy run on another data folder (--data, e.g. a portable or test copy) must not take
+        // over the main copy's entries.
         if (Packaging.IsPackaged || _customDataDirectory)
             return;
         try
         {
             if (settings.ReadFailed)
             {
-                // Can't tell whether the user turned it off: leave the entry as it is.
+                // Can't tell what the user turned off: leave everything as it is.
+                return;
             }
-            else if (!settings.AutoStartConfigured)
+
+            if (!settings.AutoStartConfigured)
             {
                 if (settings.Update(_dataDirectory, x => x.AutoStartConfigured = true) is null)
                     StartupRegistration.SetEnabled(true); // only once it's remembered, so turning it off sticks
@@ -220,6 +222,16 @@ public partial class App : Application
             else
             {
                 StartupRegistration.Refresh();
+            }
+
+            if (!settings.StartMenuConfigured)
+            {
+                if (StartMenuShortcut.Write())
+                    settings.Update(_dataDirectory, x => x.StartMenuConfigured = true);
+            }
+            else if (StartMenuShortcut.Exists)
+            {
+                StartMenuShortcut.Write(); // the exe may have moved
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
@@ -284,7 +296,7 @@ public partial class App : Application
         (s.GeminiApiKeys, s.GeminiModels) = (fresh.GeminiApiKeys, fresh.GeminiModels);
         (s.OpenCodeApiKey, s.OpenCodeModels, s.AiServices) = (fresh.OpenCodeApiKey, fresh.OpenCodeModels, fresh.AiServices);
         (s.PickNotesHotkey, s.SavedNotesHotkey) = (fresh.PickNotesHotkey, fresh.SavedNotesHotkey);
-        s.KeepNotesOnTop = fresh.KeepNotesOnTop;
+        (s.KeepNotesOnTop, s.NoteEffects) = (fresh.KeepNotesOnTop, fresh.NoteEffects);
         s.ApiKeysHotkey = fresh.ApiKeysHotkey;
         _notes.RefreshTopmost();
         Ai = s.CreateAiCorrector();

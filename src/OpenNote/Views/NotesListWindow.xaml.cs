@@ -58,7 +58,8 @@ internal partial class NotesListWindow : Window
 
         var items = notes
             .Where(n => (n.State == NoteState.Archived) == ShowingArchive && NoteSearch.Matches(n, query))
-            .OrderByDescending(n => n.ModifiedUtc)
+            .OrderByDescending(n => n.IsImportant) // starred notes first
+            .ThenByDescending(n => n.ModifiedUtc)
             .Select(n => new NoteItem(n))
             .ToList();
         List.ItemsSource = items;
@@ -165,7 +166,7 @@ internal partial class NotesListWindow : Window
 internal sealed class NoteItem(Note note)
 {
     public Note Note { get; } = note;
-    public string Title => Note.IsEmpty ? "(empty note)" : Note.Title;
+    public string Title => (Note.IsImportant ? "★ " : "") + (Note.IsEmpty ? "(empty note)" : Note.Title);
     public string Preview => Note.Preview;
     public Visibility PreviewVisibility => Preview.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 

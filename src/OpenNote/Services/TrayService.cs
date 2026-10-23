@@ -50,6 +50,13 @@ internal sealed class TrayService : IDisposable
             if (error is not null)
                 ShowWarning("Couldn't save the setting", error);
         }, isChecked: s.KeepNotesOnTop));
+        menu.Items.Add(Item("Note effects (shake, throw, archive bin)", "", () =>
+        {
+            bool on = !s.NoteEffects;
+            var error = s.Update(_dataDirectory, x => x.NoteEffects = on);
+            if (error is not null)
+                ShowWarning("Couldn't save the setting", error);
+        }, isChecked: s.NoteEffects));
         menu.Items.Add(Item("Gemini API keys…", s.ApiKeysHotkey, _app.ShowApiKeys));
         if (Packaging.IsPackaged)
             // A Store package starts with Windows through its manifest; Windows' own page turns it on or off.

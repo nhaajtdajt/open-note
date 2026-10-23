@@ -38,6 +38,8 @@ internal static class StartupRegistration
     public static void SetEnabled(bool enabled)
     {
         using var key = Registry.CurrentUser.CreateSubKey(RunKey);
+        // Either way the old DeskNotes entry goes: it would start the old app next to this one.
+        key.DeleteValue(LegacyValueName, throwOnMissingValue: false);
         if (enabled)
             key.SetValue(ValueName, Command);
         else
