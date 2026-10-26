@@ -48,7 +48,7 @@ internal partial class NoteWindow
         {
             if (saved.Count == 0)
             {
-                ShowNotice($"Couldn't add the picture: {ex.Message}");
+                ShowNotice(Ui.T("Couldn't add the picture: {0}", ex.Message));
                 return true;
             }
         }

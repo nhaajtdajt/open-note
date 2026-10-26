@@ -49,13 +49,13 @@
         </Border.Effect>
         <StackPanel>
             <Grid Margin="0,0,0,8">
-                <TextBlock Text="Check with AI" FontWeight="SemiBold" Foreground="#1F1F1F" VerticalAlignment="Center" />
+                <TextBlock x:Name="TitleText" Text="Check with AI" FontWeight="SemiBold" Foreground="#1F1F1F" VerticalAlignment="Center" />
                 <Button x:Name="CloseButton" HorizontalAlignment="Right" Style="{StaticResource IconButton}"
                         Foreground="#555555" Content="&#xE8BB;" ToolTip="Close (Esc)" />
             </Grid>
 
             <StackPanel x:Name="LoadingView">
-                <TextBlock Text="Asking Gemini…" Foreground="#666666" />
+                <TextBlock x:Name="AskingText" Text="Asking the AI…" Foreground="#666666" />
                 <ProgressBar IsIndeterminate="True" Height="3" Margin="0,8,0,2" BorderThickness="0"
                              Foreground="#D9A400" Background="#14000000" />
             </StackPanel>

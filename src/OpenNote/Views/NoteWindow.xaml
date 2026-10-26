@@ -1,6 +1,7 @@
 <Window x:Class="OpenNote.Views.NoteWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="clr-namespace:OpenNote.Views"
         x:ClassModifier="internal"
         Title="OpenNote note"
         Width="284" Height="264" MinWidth="184" MinHeight="128"
@@ -62,12 +63,13 @@
                         <Border Width="19" />
                         <TextBlock x:Name="LockGlyph" Text="&#xE72E;" FontFamily="{StaticResource IconFont}" FontSize="10"
                                    Margin="2,0,2,0" VerticalAlignment="Center" Visibility="Collapsed"
-                                   ToolTip="Locked. Ctrl+L to unlock." />
+                                   ToolTip="{v:T 'Locked. Ctrl+L to unlock.'}" />
                     </StackPanel>
 
-                    <TextBlock x:Name="TitleText" Grid.Column="1" Margin="4,0" VerticalAlignment="Center"
+                    <!-- Left-aligned, so its width is the title's own width: only a click on it renames. -->
+                    <TextBlock x:Name="TitleText" Grid.Column="1" Margin="4,0" VerticalAlignment="Center" HorizontalAlignment="Left"
                                FontWeight="Bold" TextTrimming="CharacterEllipsis" IsHitTestVisible="False" />
-                    <TextBox x:Name="TitleEditor" Grid.Column="1" Margin="0,5" Padding="3,1" Visibility="Collapsed"
+                    <TextBox x:Name="TitleEditor" Grid.Column="1" Margin="0,5" Padding="3,1" Visibility="Collapsed" HorizontalAlignment="Left"
                              VerticalContentAlignment="Center" FontWeight="Bold" BorderThickness="0" MaxLength="120"
                              Foreground="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}"
                              CaretBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}">
@@ -84,9 +86,9 @@
                     <StackPanel Grid.Column="2" Orientation="Horizontal">
                         <Button x:Name="PinButton" Style="{StaticResource IconButton}" Click="PinButton_Click" />
                         <Button x:Name="MenuButton" Style="{StaticResource IconButton}" Content="&#xE712;"
-                                Click="MenuButton_Click" ToolTip="Note options" />
+                                Click="MenuButton_Click" ToolTip="{v:T 'Note options'}" />
                         <Button x:Name="CloseButton" Style="{StaticResource IconButton}" Content="&#xE8BB;"
-                                Click="CloseButton_Click" ToolTip="Close note (Ctrl+W)" />
+                                Click="CloseButton_Click" ToolTip="{v:T 'Close note (Ctrl+W)'}" />
                     </StackPanel>
                 </Grid>
             </Border>

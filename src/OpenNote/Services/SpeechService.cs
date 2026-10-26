@@ -16,9 +16,6 @@ internal sealed class SpeechService
     const int StateDone = 1;
     const int MaxChars = 1500;
 
-    // Primary language ids of the languages we pick voices for.
-    public const int English = 0x09, Vietnamese = 0x2A;
-
     object? _voice;
     DispatcherTimer? _poll;
 
@@ -28,12 +25,12 @@ internal sealed class SpeechService
     /// Starts reading <paramref name="text"/> with a voice for <paramref name="language"/>.
     /// Returns null on success, or a short message for the user when it can't be done.
     /// </summary>
-    public string? Speak(string text, int language)
+    public string? Speak(string text, Core.Language language)
     {
         Stop();
         text = text.Trim();
         if (text.Length == 0)
-            return "There is nothing to read.";
+            return Core.Ui.T("There is nothing to read.");
         if (text.Length > MaxChars)
             text = text[..MaxChars];
 
@@ -41,16 +38,14 @@ internal sealed class SpeechService
         {
             var type = Type.GetTypeFromProgID("SAPI.SpVoice");
             if (type is null)
-                return "Windows speech isn't available on this PC.";
+                return Core.Ui.T("Windows speech isn't available on this PC.");
             var voice = Activator.CreateInstance(type)!;
 
-            var chosen = FindVoice(voice, language);
+            var chosen = FindVoice(voice, language.VoiceId);
             if (chosen is null)
             {
                 Release(voice);
-                return language == Vietnamese
-                    ? "No Vietnamese voice is installed. Add one in Settings → Time & language → Speech."
-                    : "No English voice is installed on this PC.";
+                return Core.Ui.T("No {0} voice is installed. Add one in Settings → Time & language → Speech.", Core.Ui.T(language.EnglishName));
             }
             _voice = voice; // so Stop() releases it if speaking fails
             try
@@ -72,7 +67,7 @@ internal sealed class SpeechService
         catch (Exception ex) when (IsComFailure(ex))
         {
             Stop();
-            return "Couldn't read this text aloud.";
+            return Core.Ui.T("Couldn't read this text aloud.");
         }
     }
 

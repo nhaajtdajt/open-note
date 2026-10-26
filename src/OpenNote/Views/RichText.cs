@@ -38,6 +38,24 @@ internal static class RichText
             foreach (var span in InlineMarkup.Parse(line.TrimEnd('\r')))
                 paragraph.Inlines.Add(StyledRun(span.Text, span.Bold, span.Italic));
             doc.Blocks.Add(paragraph);
+            MarkDoneItems(paragraph);
+        }
+    }
+
+    // Frozen: shared by every note, and usable from any UI thread.
+    static readonly TextDecorationCollection NoDecorations = (TextDecorationCollection)new TextDecorationCollection().GetAsFrozen();
+
+    /// <summary>
+    /// Strikes through the text of done checklist items ("☑ ") and clears it from open ones.
+    /// Drawn from the box every time, never saved: the note text stays plain.
+    /// </summary>
+    public static void MarkDoneItems(Paragraph p)
+    {
+        foreach (var (start, end, done) in Checklist.Items(PlainText(p)))
+        {
+            if (end > start)
+                new TextRange(PositionAt(p, start), PositionAt(p, end))
+                    .ApplyPropertyValue(Inline.TextDecorationsProperty, done ? TextDecorations.Strikethrough : NoDecorations);
         }
     }
 

@@ -2,7 +2,7 @@
 (function () {
   const REPO = "nhaajtdajt/open-note";
   const RELEASES = "https://github.com/" + REPO + "/releases/latest";
-  const STORE_LIVE = false; // flip to true once the Microsoft Store listing is published
+  const STORE_LIVE = true; // the Microsoft Store listing is published
 
   const vi = {
     skip: "Bỏ qua, tới phần tải về",

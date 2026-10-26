@@ -5,6 +5,8 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
+using OpenNote.Core;
+
 namespace OpenNote.Views;
 
 /// <summary>
@@ -171,7 +173,7 @@ public sealed class PictureView : FrameworkElement
             _pixelWidth = 0;
             _frame.Child = new TextBlock
             {
-                Text = ex is FileNotFoundException or DirectoryNotFoundException ? "[picture not found]" : "[picture can't be shown]",
+                Text = ex is FileNotFoundException or DirectoryNotFoundException ? Ui.T("[picture not found]") : Ui.T("[picture can't be shown]"),
                 Opacity = 0.5,
                 Margin = new Thickness(6, 3, 6, 3),
             };

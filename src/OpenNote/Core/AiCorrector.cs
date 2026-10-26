@@ -23,7 +23,7 @@ public enum Verdict
 }
 
 /// <summary>
-/// The AI's answer. For English (or mixed) text: two rewrites, what the user's own sentence actually means (in Vietnamese),
+/// The AI's answer. For text in the language being learned (or mixed): two rewrites, what the user's own sentence actually means (in their own language),
 /// what the natural version means, and a short verdict with a comment.
 /// </summary>
 public sealed record Correction(
@@ -56,44 +56,71 @@ public sealed record AiProvider(string Name, AiProvider.ApiStyle Style, string B
 /// </summary>
 public sealed class AiCorrector
 {
-    const string Instructions = """
-        You help a Vietnamese user with short text from their sticky notes. It is usually English they are learning, or Vietnamese they want in English.
+    // {N}: the user's own language, {L}: the language they're learning (Language.EnglishName).
+    // The fields and the two modes are the same for every pair of languages.
+    const string InstructionsTemplate = """
+        You help a {N}-speaking user with short text from their sticky notes. It is usually {L} they are learning, or {N} they want in {L}.
         Answer with a JSON object with exactly these string fields:
-        - mode: "translate" if the text is only Vietnamese (there is no English sentence in it to check), otherwise "check".
+        {MODE}
 
-        If mode is "translate" (do NOT check the Vietnamese; translate it into English):
-        - minimal: a faithful English translation that stays close to the Vietnamese wording.
-        - natural: how a native English speaker would naturally say the same thing (idiomatic, same tone and meaning).
+        If mode is "translate" (do NOT check the {N}; translate it into {L}):
+        - minimal: a faithful {L} translation that stays close to the {N} wording.
+        - natural: how a native {L} speaker would naturally say the same thing (idiomatic, same tone and meaning).
         - yourMeaning: empty string.
-        - naturalMeaning: the Vietnamese meaning of "natural", so the user can confirm it says what they meant.
+        - naturalMeaning: the {N} meaning of "natural", so the user can confirm it says what they meant.
         - verdict: empty string.
-        - comment: 1 or 2 short Vietnamese sentences on useful translation choices (nuance, formality, a word with several meanings). Empty string if there is nothing worth saying.
+        - comment: 1 or 2 short {N} sentences on useful translation choices (nuance, formality, a word with several meanings). Empty string if there is nothing worth saying.
         - changes: empty string.
 
         If mode is "check":
         - minimal: the text with only spelling, grammar, accents/diacritics, punctuation and clearly wrong word choices fixed, as close to the original wording as possible. If nothing is wrong, the input unchanged.
         - natural: the same meaning and tone, rewritten the way a native speaker would say it. Do not add facts or change the meaning.
-        - yourMeaning: what the user's ORIGINAL text really says, translated literally into Vietnamese, so they can see what their sentence means. If the original is Vietnamese, restate it in simple Vietnamese.
-        - naturalMeaning: the Vietnamese meaning of "natural".
+        - yourMeaning: what the user's ORIGINAL text really says, translated literally into {N}, so they can see what their sentence means. If the original is {N}, restate it in simple {N}.
+        - naturalMeaning: the {N} meaning of "natural".
         - verdict: exactly one of "good" (correct and natural), "unnatural" (understandable and grammatical, but a native speaker would not say it this way), "errors" (spelling or grammar mistakes), "wrong_meaning" (it says something different from what the user most likely meant, or is confusing).
-        - comment: 1 to 3 short Vietnamese sentences judging the original text: is it right or wrong, is it natural, and why. If the note holds a Vietnamese sentence together with an English version of it, treat the Vietnamese as the meaning the user wants, and say whether the English really expresses it. If the meanings differ, say it in this form: "Nếu nghĩa tiếng Việt là '…' thì nên viết '…'. Còn câu bạn viết nghĩa là '…'."
-        - changes: one short Vietnamese sentence on what was fixed (or that it was already correct).
+        - comment: 1 to 3 short {N} sentences judging the original text: is it right or wrong, is it natural, and why. If the note holds a {N} sentence together with a {L} version of it, treat the {N} as the meaning the user wants, and say whether the {L} really expresses it. If the meanings differ, {FORM}
+        - changes: one short {N} sentence on what was fixed (or that it was already correct).
 
         Rules:
-        - In "check" mode keep the language of the input in minimal and natural (English stays English, mixed stays mixed).
+        - In "check" mode keep the language of the input in minimal and natural ({L} stays {L}, mixed stays mixed).
         - Keep line breaks, and keep list markers (☐ ☑ •) at the start of lines.
         - Keep names, numbers, links and code exactly as written.
+        - The message may start with CONTEXT (the note's title and the words written just before) and then give TEXT. Use the context only to understand the topic, what the user means and which words fit; check or translate only TEXT, and never put the context in your answer. "Only {N}" above is about TEXT.
         - Output only the JSON object, with no other text.
         """;
 
-    static readonly Lazy<HttpClient> SharedClient = new(() => new HttpClient { Timeout = TimeSpan.FromSeconds(45) });
+    /// <summary>The instructions for a user whose language is <paramref name="native"/>, learning <paramref name="learning"/>.</summary>
+    internal static string BuildInstructions(Language native, Language learning) => InstructionsTemplate
+        .Replace("{MODE}", native == learning
+            ? "- mode: always \"check\" (the user writes in the language they are learning)."
+            : "- mode: \"translate\" if the text is only {N} (there is no {L} sentence in it to check), otherwise \"check\".")
+        .Replace("{FORM}", native.Code == "vi"
+            ? "say it in this form: \"Nếu nghĩa tiếng Việt là '…' thì nên viết '…'. Còn câu bạn viết nghĩa là '…'.\""
+            : "say it in {N}, in this form: \"If you mean '…', write '…'. What you wrote means '…'.\"")
+        .Replace("{N}", native.EnglishName)
+        .Replace("{L}", learning.EnglishName);
+
+    readonly string _instructions;
+
+    /// <summary>The text to work on, with the note's context in front of it when there is any.</summary>
+    internal static string UserMessage(string text, string context) =>
+        string.IsNullOrWhiteSpace(context)
+            ? text
+            : $"CONTEXT (only to understand the topic; do not check, translate or repeat it):\n{context}\n\nTEXT:\n{text}";
+
+    // 20 s: a model that is up answers within a few seconds; one that hangs is given up on soon
+    // enough to try the next model while you're still waiting.
+    static readonly Lazy<HttpClient> SharedClient = new(() => new HttpClient { Timeout = TimeSpan.FromSeconds(20) });
 
     readonly IReadOnlyList<AiProvider> _providers;
     readonly HttpClient? _client;
     readonly Dictionary<string, int> _nextKey = [];
 
-    public AiCorrector(IEnumerable<AiProvider> providers, HttpClient? client = null)
+    /// <param name="native">The user's own language (Vietnamese when not given).</param>
+    /// <param name="learning">The language they're learning (English when not given).</param>
+    public AiCorrector(IEnumerable<AiProvider> providers, HttpClient? client = null, Language? native = null, Language? learning = null)
     {
+        _instructions = BuildInstructions(native ?? Language.Find("vi")!, learning ?? Language.English);
         _providers = providers
             .Select(p => p with
             {
@@ -109,10 +136,12 @@ public sealed class AiCorrector
 
     HttpClient Client => _client ?? SharedClient.Value; // created on first use only
 
-    public async Task<Correction> CorrectAsync(string text, CancellationToken cancel = default)
+    /// <param name="context">The note's title and the words before <paramref name="text"/> (see <see cref="AiContext"/>), read for meaning only.</param>
+    public async Task<Correction> CorrectAsync(string text, string context = "", CancellationToken cancel = default)
     {
+        text = UserMessage(text, context);
         if (!IsConfigured)
-            throw new AiException("No AI key yet. Press Ctrl+Alt+K to add a free Gemini API key.");
+            throw new AiException(Ui.T("No AI key yet. Press Ctrl+Alt+K to add a free Gemini API key."));
 
         var failures = new List<string>();
         foreach (var provider in _providers)
@@ -125,7 +154,7 @@ public sealed class AiCorrector
                     HttpRequestMessage request;
                     try
                     {
-                        request = BuildRequest(provider, model, provider.Keys[keyIndex], text);
+                        request = BuildRequest(provider, model, provider.Keys[keyIndex], _instructions, text);
                     }
                     catch (Exception ex) when (ex is FormatException or InvalidOperationException or ArgumentException)
                     {
@@ -190,7 +219,7 @@ public sealed class AiCorrector
         }
     }
 
-    static HttpRequestMessage BuildRequest(AiProvider provider, string model, string key, string text)
+    static HttpRequestMessage BuildRequest(AiProvider provider, string model, string key, string instructions, string text)
     {
         if (provider.Style == AiProvider.ApiStyle.OpenAiChat)
         {
@@ -200,7 +229,7 @@ public sealed class AiCorrector
                 ["temperature"] = 0.2,
                 ["max_tokens"] = 3000,
                 ["messages"] = new JsonArray(
-                    new JsonObject { ["role"] = "system", ["content"] = Instructions },
+                    new JsonObject { ["role"] = "system", ["content"] = instructions },
                     new JsonObject { ["role"] = "user", ["content"] = text }),
             };
             var request = new HttpRequestMessage(HttpMethod.Post, provider.BaseUrl.TrimEnd('/') + "/chat/completions")
@@ -216,7 +245,7 @@ public sealed class AiCorrector
             properties[field] = new JsonObject { ["type"] = "STRING" };
         var body = new JsonObject
         {
-            ["systemInstruction"] = new JsonObject { ["parts"] = new JsonArray(new JsonObject { ["text"] = Instructions }) },
+            ["systemInstruction"] = new JsonObject { ["parts"] = new JsonArray(new JsonObject { ["text"] = instructions }) },
             ["contents"] = new JsonArray(new JsonObject
             {
                 ["role"] = "user",
@@ -311,10 +340,10 @@ public sealed class AiCorrector
         bool quota = failures.All(f => f.EndsWith(": 429"));
         bool rejected = failures.All(f => f.EndsWith(": 401") || f.EndsWith(": 403"));
         bool offline = failures.All(f => f.EndsWith("no connection"));
-        string summary = offline ? "Couldn't reach the AI service. Check your internet connection."
-            : quota ? "All API keys are out of quota for now. Try again later."
-            : rejected ? "The AI service rejected the API keys. Check them in settings.json."
-            : "The AI service is busy right now. Try again in a moment.";
+        string summary = offline ? Ui.T("Couldn't reach the AI service. Check your internet connection.")
+            : quota ? Ui.T("All API keys are out of quota for now. Try again later.")
+            : rejected ? Ui.T("The AI service rejected the API keys. Check them in settings.json.")
+            : Ui.T("The AI service is busy right now. Try again in a moment.");
         return $"{summary}\n({string.Join(", ", failures)})";
     }
 }

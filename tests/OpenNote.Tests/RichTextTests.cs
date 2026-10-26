@@ -64,6 +64,19 @@ public class RichTextTests
         }));
 
     [Fact]
+    public void DoneItems_AreStruckThrough_OpenOnesAndTheBoxAreNot() =>
+        Assert.Equal("open:False done-box:False done-text:True saved:☐ eggs\r\n☑ **milk**", OnSta(() =>
+        {
+            var doc = new FlowDocument();
+            RichText.Load(doc, "☐ eggs\n☑ **milk**");
+            static bool Struck(TextPointer at) => at.Parent is Inline run && run.TextDecorations?.Count > 0;
+            var open = (Paragraph)doc.Blocks.FirstBlock;
+            var done = (Paragraph)doc.Blocks.LastBlock;
+            return $"open:{Struck(RichText.PositionAt(open, 3))} done-box:{Struck(RichText.PositionAt(done, 1))} "
+                + $"done-text:{Struck(RichText.PositionAt(done, 3))} saved:{RichText.Save(doc)}";
+        }));
+
+    [Fact]
     public void PlainText_IsWhatListLogicSees() =>
         Assert.Equal("☐ buy milk", OnSta(() =>
         {

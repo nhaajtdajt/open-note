@@ -6,6 +6,8 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Interop;
 using OpenNote.Native;
 
+using OpenNote.Core;
+
 namespace OpenNote.Services;
 
 /// <summary>The app's only permanent presence: a notification-area icon and its menu.</summary>
@@ -50,16 +52,17 @@ internal sealed class TrayService : IDisposable
             var error = s.Update(_dataDirectory, x => x.KeepNotesOnTop = onTop);
             _notes.RefreshTopmost();
             if (error is not null)
-                ShowWarning("Couldn't save the setting", error);
+                ShowWarning(Ui.T("Couldn't save the setting"), error);
         }, isChecked: s.KeepNotesOnTop));
         menu.Items.Add(Item("Note effects (shake, throw, archive bin)", "", () =>
         {
             bool on = !s.NoteEffects;
             var error = s.Update(_dataDirectory, x => x.NoteEffects = on);
             if (error is not null)
-                ShowWarning("Couldn't save the setting", error);
+                ShowWarning(Ui.T("Couldn't save the setting"), error);
         }, isChecked: s.NoteEffects));
-        menu.Items.Add(Item("Gemini API keys…", s.ApiKeysHotkey, _app.ShowApiKeys));
+        menu.Items.Add(Item("Fade notes while I use other apps", s.FadeHotkey, _app.ToggleFadeWhenInactive, isChecked: s.FadeWhenInactive));
+        menu.Items.Add(Item("AI languages and keys…", s.ApiKeysHotkey, _app.ShowApiKeys));
         if (Packaging.IsPackaged)
             // A Store package starts with Windows through its manifest; Windows' own page turns it on or off.
             menu.Items.Add(Item("Start with Windows…", "", () => OpenFile("ms-settings:startupapps")));
@@ -92,7 +95,7 @@ internal sealed class TrayService : IDisposable
 
     static MenuItem Item(string text, string shortcut, Action action, bool isChecked = false)
     {
-        var item = new MenuItem { Header = text, InputGestureText = shortcut, IsChecked = isChecked };
+        var item = new MenuItem { Header = Ui.T(text), InputGestureText = shortcut, IsChecked = isChecked };
         item.Click += (_, _) => action();
         return item;
     }

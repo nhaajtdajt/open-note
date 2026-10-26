@@ -57,6 +57,32 @@ public sealed class AppSettings
     /// </summary>
     public bool NoteEffects { get; set; } = true;
 
+    /// <summary>
+    /// Off by default. On: while you work in another app the notes fade to 10%, so they stay in
+    /// sight without covering it; clicking a note (or any Open Note window) brings them back.
+    /// </summary>
+    public bool FadeWhenInactive { get; set; }
+
+    /// <summary>Turns <see cref="FadeWhenInactive"/> on or off.</summary>
+    public string FadeHotkey { get; set; } = "Ctrl+Alt+F";
+
+    /// <summary>
+    /// Language of the app's menus and windows ("vi", "en", … see <see cref="Language.All"/>),
+    /// picked at the first start and changed on the how-to card; empty: not picked yet.
+    /// </summary>
+    public string UiLanguage { get; set; } = "";
+
+    /// <summary>
+    /// The how-to card's language in test builds before 1.1.0 (English or Vietnamese): used as the display
+    /// language by someone who had chosen it before there was one.
+    /// </summary>
+    public string HelpLanguage { get; set; } = "";
+
+    /// <summary>The display language: the one picked, else the old card language, else guessed from Windows.</summary>
+    public Language DisplayLanguage() => Language.Find(UiLanguage) ?? Language.Find(HelpLanguage) ?? Language.Guess(
+        System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
+        System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
+
     public string DefaultColor { get; set; } = Palette.Default.Hex;
     public double DefaultOpacity { get; set; } = 0.9;
     public NoteFont DefaultFont { get; set; } = NoteFont.Mono;
@@ -79,12 +105,33 @@ public sealed class AppSettings
     /// </summary>
     public List<AiServiceSetting> AiServices { get; set; } = [];
 
+    /// <summary>Your own language ("vi", "en", … see <see cref="Language.All"/>); empty: guessed from Windows.</summary>
+    public string NativeLanguage { get; set; } = "";
+
+    /// <summary>The language you're learning: text in your language is translated into it, text in it is checked.</summary>
+    public string LearningLanguage { get; set; } = "en";
+
+    public Language Native() => Language.Find(NativeLanguage) ?? Language.Guess(
+        System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
+        System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName);
+
+    public Language Learning() => Language.Find(LearningLanguage) ?? Language.English;
+
     /// <summary>Gemini API keys, used in turn. If empty, GEMINI_API_KEY, GEMINI_API_KEY_2, ... environment variables are used.</summary>
     public List<string> GeminiApiKeys { get; set; } = [];
 
-    /// <summary>Gemini models to try in order; the next one is used when one is overloaded.</summary>
-    public List<string> GeminiModels { get; set; } =
-        ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
+    /// <summary>
+    /// Gemini models to try in order; the next one is used when one is overloaded. Flash-Lite
+    /// first: it answers in about a second and is enough for checking a sentence, while Flash is
+    /// often overloaded (503, or no answer at all) on free keys.
+    /// </summary>
+    public List<string> GeminiModels { get; set; } = ["gemini-flash-lite-latest", "gemini-flash-latest"];
+
+    /// <summary>
+    /// The default list up to version 1.0.x, saved in many settings.json files: slow (Flash first)
+    /// and with two models Google has retired. A file still holding exactly this list gets the new one.
+    /// </summary>
+    static readonly string[] OldDefaultGeminiModels = ["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
     public IReadOnlyList<string> EffectiveGeminiKeys()
     {
@@ -113,7 +160,7 @@ public sealed class AppSettings
             .Select(x => new AiProvider(string.IsNullOrWhiteSpace(x.Name) ? x.BaseUrl : x.Name, AiProvider.ApiStyle.OpenAiChat, x.BaseUrl,
                 string.IsNullOrWhiteSpace(x.ApiKey) ? [] : [x.ApiKey], x.Models ?? [])),
         new AiProvider("Gemini", AiProvider.ApiStyle.Gemini, AiProvider.GeminiUrl, EffectiveGeminiKeys(), GeminiModels),
-    ], client);
+    ], client, Native(), Learning());
 
     public static string PathIn(string directory) => Path.Combine(directory, "settings.json");
 
@@ -142,11 +189,11 @@ public sealed class AppSettings
         }
         catch (JsonException)
         {
-            return "settings.json has a mistake in it, so it wasn't changed. Fix it (tray icon → Edit settings), then Reload settings.";
+            return Ui.T("settings.json has a mistake in it, so it wasn't changed. Fix it (tray icon → Edit settings), then Reload settings.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            return $"settings.json couldn't be saved: {ex.Message}";
+            return Ui.T("settings.json couldn't be saved: {0}", ex.Message);
         }
     }
 
@@ -167,7 +214,7 @@ public sealed class AppSettings
         }
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
-            error = $"settings.json could not be read ({ex.Message}). Using defaults until it's fixed.";
+            error = Ui.T("settings.json could not be read ({0}). Using defaults until it's fixed.", ex.Message);
             return new AppSettings { ReadFailed = true };
         }
     }
@@ -184,8 +231,8 @@ public sealed class AppSettings
             loaded.OpenCodeModels = new AppSettings().OpenCodeModels;
         loaded.AiServices ??= [];
         loaded.GeminiApiKeys ??= [];
-        if (loaded.GeminiModels is null or { Count: 0 })
-            loaded.GeminiModels = new AppSettings().GeminiModels;
+        if (loaded.GeminiModels is null or { Count: 0 } || loaded.GeminiModels.SequenceEqual(OldDefaultGeminiModels))
+            loaded.GeminiModels = new AppSettings().GeminiModels; // a hand-made list is kept as it is
         return loaded;
     }
 

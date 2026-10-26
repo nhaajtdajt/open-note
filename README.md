@@ -12,11 +12,15 @@ Download from the [latest release](https://github.com/nhaajtdajt/open-note/relea
 
 Requires Windows 10 version 1809 or later (64-bit). The downloads aren't code-signed yet, so Windows SmartScreen may warn on first run: click **More info → Run anyway**.
 
-**First run:** Open Note lives in the notification area (tray) and shows a welcome note. It turns on **Start with Windows** by itself, so it is there after every restart; turn that off from the tray menu. Press `Ctrl+Alt+N` for a new note.
+**First run:** Open Note asks which language to use (English, Tiếng Việt, 中文（简体）, Español, 日本語, 한국어 or Français; the whole app, its welcome note and the AI popup follow it, and change it any time from the language button on the `Ctrl+Alt+/` card). It lives in the notification area (tray) and opens the how-to card (`Ctrl+Alt+/`) and a welcome note. It turns on **Start with Windows** by itself, so it is there after every restart; turn that off from the tray menu. Press `Ctrl+Alt+N` for a new note.
 
 ## Check with AI: add a free Gemini key
 
-Press **`Ctrl+Alt+K`** (or tray menu → **Gemini API keys…**, or just use Check with AI the first time). The window explains how to:
+Press **`Ctrl+Alt+K`** (or tray menu → **AI languages and keys…**, or just use Check with AI the first time).
+
+**Languages.** At the top of that window, pick **your language** and the **language you're learning**, from English, Tiếng Việt, 中文（简体）, Español, 日本語, 한국어 and Français. Text in your language is translated into the one you're learning; text in the one you're learning is checked and made more natural; the explanations, and the AI popup, are in your language. Spell check uses the learning language's Windows dictionary (if installed), and read aloud picks a voice for whichever of the two the text is in (Vietnamese, Chinese, Japanese and Korean are recognised from their letters; English, Spanish and French count as the learning language). Until you choose, your language follows Windows (its display language, or its region when Windows is in English) and the learning language is English.
+
+Then add a key. The window explains how to:
 
 1. Open [Google AI Studio](https://aistudio.google.com/apikey) and sign in with a Google account.
 2. Click **Create API key**, then copy it.
@@ -35,24 +39,25 @@ On the free tier Google may use the text you check to improve its products, so d
 | Anywhere | `Ctrl+Alt+P` | **Choose notes to keep.** Shows all notes and opens a picker: arrows move, `Space` or a click selects, `Enter` (or `Ctrl+Alt+P` again) keeps the selected notes, hides the rest and closes the picker, `Esc` cancels. The choice is saved as the one saved selection. |
 | Anywhere | `Ctrl+Alt+J` | **Show the saved selection** (only those notes). Press it again to hide everything. With no saved selection yet, it opens the picker. |
 | Anywhere | `Ctrl+Alt+M` | All notes: search, reopen, archive, restore, delete permanently. Press it again to close the list (if the list is behind other windows, it comes to the front instead). |
+| Anywhere | `Ctrl+Alt+F` | **Fade notes while you use other apps** (off by default; also in the tray menu). When another app is in front, every note turns 10% see-through; click a note, or open any Open Note window, and they are back at full strength. |
 | Anywhere | `Ctrl+Alt+K` | Add or check your Gemini API keys for Check with AI |
-| Anywhere | `Ctrl+Alt+/` | **How to use:** a short card with the shortcuts, in the middle of the screen. Press it again, click or press Esc to close it. |
+| Anywhere | `Ctrl+Alt+/` | **How to use:** a short card with the shortcuts, in the middle of the screen. The language button at its top right switches the whole app to another of the seven languages. Press it again, click or press Esc to close it. |
 | Anywhere | `Ctrl+Alt+Q` | **Quit Open Note completely:** saves everything and stops the app (it no longer runs in the background). Start it again from the Start menu. |
 | In a note | Click the header, or `F2` | Rename the note (Enter saves, Esc cancels) |
 | In a note | `/-` | Bullet `•` (type a slash, then a dash) |
 | In a note | `/>` | Checkbox `☐`. Type `//-` or `//>` to keep the characters as typed. |
 | In a note | `Ctrl+B` / `Ctrl+I` | **Bold** / *italic* |
-| In a note | `Ctrl+G`, or right-click → **Check with AI** | Send the selected text (or the current line) to Gemini. You get two versions: one as close to your wording as possible, and one that reads more naturally. Pick one to replace the text. |
+| In a note | `Ctrl+G`, or right-click → **Check with AI** | Send the selected text (or the current line) to Gemini, with the note's title and up to 30 words written before it so the answer fits the topic (that context is only read, never changed). You get two versions: one as close to your wording as possible, and one that reads more naturally. Pick one to replace the text. |
 | In a note | `Ctrl+R`, or right-click → **Read aloud** | Read the selected text (or the current line) aloud with the offline Windows voices. Press again to stop. |
 | In a note | `Ctrl+N` | New note next to this one |
 | In a note | `Ctrl+W`, or the × button | **Close** the note. It stays in the notes list (not in the Archive); reopen it with a double-click there. Empty notes are discarded. |
 | In a note | `Ctrl+D` | **Archive** the note (restorable from All notes → Archive) |
 | In a note | `Ctrl+T`, or the 📌 button | Add this note to your **saved notes** (the selection of `Ctrl+Alt+P` / `Ctrl+Alt+J`), or take it out |
 | In a note | `Ctrl+L` | Lock editing |
-| In a note | `Ctrl+Enter` | Make the line a checklist item, or tick/untick it. Clicking a box ticks it too. Enter on a list line starts the next item; Enter on an empty item ends the list. |
+| In a note | `Ctrl+Enter` | Make the line a checklist item, or tick/untick it. Clicking a box ticks it too. A ticked item's text is struck through, up to the end of its line. Enter on a list line starts the next item; Enter on an empty item ends the list. |
 | In a note | `Ctrl+1` … `Ctrl+8` | Color |
 | In a note | `Ctrl+[` / `Ctrl+]` | Clearer / more solid glass (the text always stays solid) |
-| In a note | `Ctrl+wheel`, `Ctrl+=` / `Ctrl+-` / `Ctrl+0` | Text size |
+| In a note | `Ctrl+wheel`, `Ctrl+=` / `Ctrl+-` / `Ctrl+0`, or the **Text size** slider in the note's ⋯ menu | Text size |
 
 - **Move a note:** drag its header.
 - **Rename a note:** click the header without dragging (it starts after a moment, in case you meant to double-click).
@@ -101,7 +106,7 @@ On the free tier Google may use the text you check to improve its products, so d
 - **OpenCode key (pay-as-you-go account):** create an account at opencode.ai, make an API key and put it in `settings.json` as `"openCodeApiKey": "…"` (or set `OPENCODE_API_KEY`). Without a key OpenCode refuses requests (HTTP 403), so Gemini is used instead.
 - **Gemini keys:** add them with `Ctrl+Alt+K` (see above). They are stored in `settings.json` as `"geminiApiKeys"`; the `GEMINI_API_KEY`, `GEMINI_API_KEY_2`, … environment variables work too. Keys are used in turn, and one that is out of quota or rejected is skipped for that request.
 - **Models:** `"openCodeModels"` and `"geminiModels"` list the models to try in order. When one is overloaded or its answer can't be read, the next is used.
-- **Privacy:** nothing is sent unless you ask. Only the selected text (or current line) goes to the AI service, and keys travel in a request header, not in the URL.
+- **Privacy:** nothing is sent unless you ask. Only the selected text (or current line), plus the note's title and up to 30 words before it as context, goes to the AI service, and keys travel in a request header, not in the URL.
 - **Formatting:** the replaced text comes back plain, so bold or italic inside that selection is not kept.
 
 ## How it behaves on Windows (and why)

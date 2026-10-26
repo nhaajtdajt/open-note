@@ -44,6 +44,7 @@ internal partial class NoteWindow : Window
         Editor.IsUndoEnabled = false; // start with an empty undo history, so Ctrl+Z can't "undo" loading the note
         Editor.IsUndoEnabled = true;
         Editor.CaretPosition = Editor.Document.ContentStart; // open at the top of the note
+        ApplyLanguages();
         ApplyTopmost();
         ApplyAppearance();
         UpdateChrome(animate: false);
@@ -398,18 +399,18 @@ internal partial class NoteWindow : Window
     {
         bool engaged = IsActive || IsMouseOver;
         ApplyStar(animate);
-        StarButton.ToolTip = Note.IsImportant ? "Important. Click to remove the star (Ctrl+Shift+S)" : "Mark as important (Ctrl+Shift+S)";
+        StarButton.ToolTip = Note.IsImportant ? Ui.T("Important. Click to remove the star (Ctrl+Shift+S)") : Ui.T("Mark as important (Ctrl+Shift+S)");
         FadeTo(MenuButton, engaged ? 0.75 : 0, animate);
         FadeTo(CloseButton, engaged ? 0.75 : 0, animate);
         bool saved = _manager.IsInSelection(Note);
         FadeTo(PinButton, saved ? 0.75 : engaged ? 0.5 : 0, animate);
         PinButton.Content = saved ? PinnedGlyph : PinGlyph;
-        PinButton.ToolTip = saved ? "Remove from your saved notes (Ctrl+T)" : "Add to your saved notes (Ctrl+T)";
+        PinButton.ToolTip = saved ? Ui.T("Remove from your saved notes (Ctrl+T)") : Ui.T("Add to your saved notes (Ctrl+T)");
 
         bool untitled = string.IsNullOrWhiteSpace(Note.Heading);
-        TitleText.Text = untitled ? "Untitled" : Note.Heading;
+        TitleText.Text = untitled ? Ui.T("Untitled") : Note.Heading;
         TitleText.Opacity = untitled ? (engaged && !Note.IsLocked ? 0.4 : 0) : 0.9;
-        Header.ToolTip = Note.IsLocked ? null : "Click to rename, drag to move";
+        Header.ToolTip = Note.IsLocked ? null : Ui.T("Click the title to rename, drag to move");
 
         LockGlyph.Visibility = Note.IsLocked ? Visibility.Visible : Visibility.Collapsed;
         LockGlyph.Opacity = 0.55;
@@ -451,9 +452,12 @@ internal partial class NoteWindow : Window
         _manager.NoteMoved();
     }
 
-    void ChangeFontSize(double delta)
+    void ChangeFontSize(double delta) =>
+        SetFontSize(delta == 0 ? _manager.Settings.DefaultFontSize : Note.FontSize + delta);
+
+    void SetFontSize(double size)
     {
-        Note.FontSize = delta == 0 ? _manager.Settings.DefaultFontSize : Math.Clamp(Note.FontSize + delta, MinFont, MaxFont);
+        Note.FontSize = Math.Clamp(Math.Round(size), MinFont, MaxFont);
         ApplyAppearance();
         _manager.NoteMoved();
     }
@@ -464,6 +468,12 @@ internal partial class NoteWindow : Window
         ApplyAppearance();
         _manager.NoteMoved();
     }
+
+    /// <summary>
+    /// "Fade when inactive": the note's content goes to 10% while another app is in use. The
+    /// window's own opacity is left to the shake effect, so the two never undo each other.
+    /// </summary>
+    public void SetFaded(bool faded) => FadeTo((UIElement)Content, faded ? 0.1 : 1, animate: true);
 
     /// <summary>Notes stay above other windows when "Keep notes on top" is on.</summary>
     public void ApplyTopmost() => Topmost = _manager.Settings.KeepNotesOnTop;
@@ -484,15 +494,39 @@ internal partial class NoteWindow : Window
 
     // ---------- Spell check ----------
 
-    bool SpellCheckWanted => Note.SpellCheck ?? !LanguageHint.LooksVietnamese(Note.Heading + "\n" + Note.Text);
+    /// <summary>Automatic mode: on for notes in the language you're learning, off for notes in your own.</summary>
+    bool SpellCheckWanted => Note.SpellCheck ??
+        LanguageHint.Guess(Note.Heading + "\n" + Note.Text, _manager.Settings.Native(), _manager.Settings.Learning()) == _manager.Settings.Learning();
 
     bool _spellCheckStarted, _spellCheckBroken, _spellCheckQueued;
 
     /// <summary>
+    /// Spell checks in the language you're learning (Ctrl+Alt+K), with that Windows dictionary if
+    /// it is installed (without one nothing is underlined). Called again when the language changes.
+    /// </summary>
+    public void ApplyLanguages()
+    {
+        var culture = System.Windows.Markup.XmlLanguage.GetLanguage(_manager.Settings.Learning().Culture);
+        if (Editor.Language == culture)
+            return;
+        try
+        {
+            if (SpellCheck.GetIsEnabled(Editor))
+                SpellCheck.SetIsEnabled(Editor, false); // restarted below with the new dictionary
+            Editor.Language = culture;
+        }
+        catch (Exception ex) when (ex is NullReferenceException or System.Runtime.InteropServices.COMException or InvalidOperationException)
+        {
+            _spellCheckBroken = true;
+        }
+        UpdateSpellCheck();
+    }
+
+    /// <summary>
     /// Windows' spell checker (the one Notepad uses) starts the first time you work in a note,
     /// so notes you never touch cost nothing, and then stays on. It is switched off only when it
-    /// shouldn't run: Vietnamese notes in automatic mode (the English dictionary would underline
-    /// word by word), locked notes, or when you turn it off.
+    /// shouldn't run: notes in your own language in automatic mode (the other language's
+    /// dictionary would underline word by word), locked notes, or when you turn it off.
     /// <para>
     /// It isn't toggled on every focus change: doing that made WPF's own spell checker throw
     /// (NullReferenceException in Speller.EnsureInitialized during window activation).
@@ -540,6 +574,7 @@ internal partial class NoteWindow : Window
         if (Note.IsLocked)
             return;
         Activate();
+        TitleEditor.Width = Math.Max(90, TitleColumnWidth / 2); // half the bar: the rest stays free to grab the note
         TitleEditor.Text = Note.Heading;
         TitleText.Visibility = Visibility.Hidden;
         TitleEditor.Visibility = Visibility.Visible;
@@ -582,17 +617,29 @@ internal partial class NoteWindow : Window
     // The list logic works on a paragraph's plain text (Checklist, QuickInsert); RichText maps
     // its character offsets back to positions in the document.
 
-    /// <summary>Applies a plain-text edit to one paragraph; inserted list markers are never bold/italic.</summary>
+    /// <summary>
+    /// Applies a plain-text edit to one paragraph, as one undo step; inserted list markers are
+    /// never bold/italic, and a ticked item's text is struck through (and unstruck when unticked).
+    /// </summary>
     void ApplyLineEdit(Paragraph p, TextEdit edit, bool moveCaret = true)
     {
-        var range = new TextRange(RichText.PositionAt(p, edit.Start), RichText.PositionAt(p, edit.Start + edit.Length))
+        Editor.BeginChange();
+        try
         {
-            Text = edit.Replacement,
-        };
-        if (edit.Replacement.Length > 0)
+            var range = new TextRange(RichText.PositionAt(p, edit.Start), RichText.PositionAt(p, edit.Start + edit.Length))
+            {
+                Text = edit.Replacement,
+            };
+            if (edit.Replacement.Length > 0)
+            {
+                range.ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Normal);
+                range.ApplyPropertyValue(TextElement.FontStyleProperty, FontStyles.Normal);
+            }
+            RichText.MarkDoneItems(p);
+        }
+        finally
         {
-            range.ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Normal);
-            range.ApplyPropertyValue(TextElement.FontStyleProperty, FontStyles.Normal);
+            Editor.EndChange();
         }
         if (moveCaret)
             Editor.CaretPosition = RichText.PositionAt(p, edit.CaretAfter);
@@ -640,6 +687,8 @@ internal partial class NoteWindow : Window
             var marker = new TextRange(Editor.CaretPosition, Editor.CaretPosition) { Text = next.Replacement.TrimStart('\n') };
             marker.ApplyPropertyValue(TextElement.FontWeightProperty, FontWeights.Normal);
             marker.ApplyPropertyValue(TextElement.FontStyleProperty, FontStyles.Normal);
+            // The next item after a done one is open: what is typed in it must not be struck through.
+            marker.ApplyPropertyValue(Inline.TextDecorationsProperty, new TextDecorationCollection());
             Editor.CaretPosition = marker.End;
         }
         finally
@@ -689,7 +738,7 @@ internal partial class NoteWindow : Window
     {
         bool overPicture = PictureUnderMouse(e) is not null;
         Editor.Cursor = overPicture || (!Note.IsLocked && BoxUnderMouse(e) is not null) ? Cursors.Hand : null;
-        Editor.ToolTip = overPicture ? "Click to select, double-click to open" : null;
+        Editor.ToolTip = overPicture ? Ui.T("Click to select, double-click to open") : null;
     }
 
     void Editor_PreviewMouseWheel(object sender, MouseWheelEventArgs e)

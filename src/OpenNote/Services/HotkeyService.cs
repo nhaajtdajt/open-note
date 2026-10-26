@@ -30,11 +30,11 @@ internal sealed class HotkeyService : IDisposable
         if (string.IsNullOrWhiteSpace(gesture))
             return null;
         if (!HotkeyGesture.TryParse(gesture, out var g))
-            return $"{gesture}: not a valid shortcut";
+            return $"{gesture}: {Ui.T("not a valid shortcut")}";
 
         int id = _nextId++;
         if (!Win32.RegisterHotKey(_source.Handle, id, g.Modifiers | Win32.MOD_NOREPEAT, g.VirtualKey))
-            return $"{gesture}: already used by another app";
+            return $"{gesture}: {Ui.T("already used by another app")}";
 
         _actions[id] = action;
         return null;

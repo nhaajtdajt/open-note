@@ -47,6 +47,21 @@ public static class Checklist
         return new TextEdit(caret, 0, insert, caret + insert.Length);
     }
 
+    /// <summary>
+    /// Every checklist item's text, after its "☐ "/"☑ " marker up to the end of its line, and
+    /// whether it is done (a done item is shown struck through).
+    /// </summary>
+    public static IEnumerable<(int Start, int End, bool Done)> Items(string text)
+    {
+        for (int start = 0; start <= text.Length; start = LineEnd(text, start) + 1)
+        {
+            if (HasMarker(text, start, out var marker) && marker != Bullet)
+                yield return (start + PrefixLength, LineEnd(text, start), marker == Done);
+            if (LineEnd(text, start) >= text.Length)
+                yield break;
+        }
+    }
+
     static bool HasMarker(string text, int lineStart, out char marker)
     {
         marker = default;

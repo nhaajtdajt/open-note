@@ -1,6 +1,6 @@
 # Open Note privacy policy
 
-_Last updated: 22 October 2026_
+_Last updated: 26 October 2026_
 
 Open Note is a sticky-notes app for Windows. It is built so that your notes stay on your PC.
 
@@ -25,7 +25,7 @@ Only you (and administrators of your PC) can read these files. Uninstalling the 
 
 Open Note only connects to the internet when you ask it to:
 
-1. **Check with AI** (`Ctrl+G` or right-click → Check with AI). The text you selected (or the current line) is sent to the AI service you set up, using **your own** API key. By default that is the Google Gemini API. Nothing else from your notes is sent.
+1. **Check with AI** (`Ctrl+G` or right-click → Check with AI). The text you selected (or the current line) is sent to the AI service you set up, using **your own** API key. By default that is the Google Gemini API. So the AI understands what the note is about, the same request also carries that note's title and up to 30 words written just before the text. Nothing else from your notes is sent.
 2. **Checking an API key** (the Gemini API keys window, `Ctrl+Alt+K`). When you click **Check and save**, Open Note asks Google whether each key works by listing the available models. No note text is sent.
 3. **Opening a web page** you clicked on (for example Google AI Studio to create a key) opens it in your browser.
 
@@ -62,6 +62,6 @@ Questions: open an issue at <https://github.com/nhaajtdajt/open-note/issues>.
 
 - Nhà phát triển **không thu thập gì**: không tài khoản, không telemetry, không quảng cáo.
 - Note, ảnh, cài đặt và API key chỉ lưu trên máy bạn, trong `%LOCALAPPDATA%\OpenNote`. API key được lưu dạng văn bản thường trong `settings.json`.
-- Chỉ khi bạn bấm **Check with AI**, đoạn chữ bạn chọn mới được gửi tới dịch vụ AI (mặc định là Google Gemini) bằng **key của chính bạn**. Khi bấm **Check and save** trong cửa sổ key, app chỉ hỏi Google xem key có dùng được không, không gửi nội dung note.
+- Chỉ khi bạn bấm **Check with AI**, đoạn chữ bạn chọn mới được gửi tới dịch vụ AI (mặc định là Google Gemini) bằng **key của chính bạn**, kèm tiêu đề của note đó và tối đa 30 từ viết ngay trước đoạn chữ, để AI hiểu ngữ cảnh. Ngoài ra không gửi gì khác trong note. Khi bấm **Check and save** trong cửa sổ key, app chỉ hỏi Google xem key có dùng được không, không gửi nội dung note.
 - Ở gói **miễn phí**, Google có thể dùng nội dung bạn gửi để cải thiện sản phẩm, và có thể có người xem lại. Đừng kiểm tra văn bản riêng tư hay nhạy cảm.
 - Đọc to và kiểm tra chính tả chạy hoàn toàn trên máy, không cần mạng.

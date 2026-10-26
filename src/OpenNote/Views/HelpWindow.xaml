@@ -29,33 +29,50 @@
         <!-- Title, beside the seal -->
         <StackPanel Margin="146,80,0,0" HorizontalAlignment="Left" VerticalAlignment="Top">
             <TextBlock Text="Open Note" FontFamily="Ink Free, Segoe Print" FontSize="30" FontWeight="Bold" Foreground="#FF6E2620" />
-            <TextBlock Text="your sticky notes, and the keys that move them" Margin="2,0,0,0"
+            <TextBlock x:Name="Subtitle" Margin="2,0,0,0"
                        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12.5" FontStyle="Italic" Foreground="#B33B2A1E" />
         </StackPanel>
 
+        <!-- Switches the card between English and Vietnamese (remembered in settings.json) -->
+        <Button x:Name="LanguageButton" Margin="0,88,52,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                Cursor="Hand" Focusable="False" Click="LanguageButton_Click">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Pill" CornerRadius="10" BorderThickness="1" BorderBrush="#997A2A22" Background="#14FFFFFF" Padding="10,2,10,3">
+                        <ContentPresenter />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Pill" Property="Background" Value="#26FFFFFF" />
+                            <Setter TargetName="Pill" Property="BorderBrush" Value="#FF7A2A22" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+            <TextBlock x:Name="LanguageText" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="#FF6E2620" />
+        </Button>
+
         <!-- Two columns of shortcuts -->
-        <Grid Margin="84,158,40,0" VerticalAlignment="Top">
+        <Grid Margin="84,148,40,0" VerticalAlignment="Top">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="18" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <StackPanel>
-                <TextBlock Text="Anywhere" Style="{StaticResource Heading}" />
+                <TextBlock x:Name="AnywhereHeading" Style="{StaticResource Heading}" />
                 <StackPanel x:Name="Anywhere" Grid.IsSharedSizeScope="True" />
             </StackPanel>
             <StackPanel Grid.Column="2">
-                <TextBlock Text="In a note" Style="{StaticResource Heading}" />
+                <TextBlock x:Name="InNoteHeading" Style="{StaticResource Heading}" />
                 <StackPanel x:Name="InNote" Grid.IsSharedSizeScope="True" />
             </StackPanel>
         </Grid>
 
         <!-- One line of tips, then how to close -->
         <StackPanel Margin="84,0,40,30" VerticalAlignment="Bottom">
-            <TextBlock TextWrapping="Wrap" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12" Foreground="#FF3B2A1E" LineHeight="17">
-                Drag a note by its top bar · double-click the bar to resize · drop or throw it on the bin to archive · ☆ in the corner marks it important.
-            </TextBlock>
-            <TextBlock Text="Click anywhere or press Esc to close" Margin="0,8,0,0" HorizontalAlignment="Center"
+            <TextBlock x:Name="Tips" TextWrapping="Wrap" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="12" Foreground="#FF3B2A1E" LineHeight="17" />
+            <TextBlock x:Name="CloseHint" Margin="0,8,0,0" HorizontalAlignment="Center"
                        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="11" FontStyle="Italic" Foreground="#993B2A1E" />
         </StackPanel>
     </Grid>

@@ -98,19 +98,38 @@ public partial class App : Application
         // When you go back to other apps, give idle memory back to Windows.
         Deactivated += (_, _) => TrimSoon(TimeSpan.FromSeconds(10));
         Activated += (_, _) => _trimTimer?.Stop();
+        // "Fade when inactive": notes fade while another app is in use and come back as soon as
+        // Open Note is (a note is clicked, or any of its windows opens).
+        Deactivated += (_, _) =>
+        {
+            if (_notes?.Settings.FadeWhenInactive == true)
+                _notes.SetFaded(true);
+        };
+        Activated += (_, _) => _notes?.SetFaded(false);
 
         try
         {
             var settings = AppSettings.Load(_dataDirectory, out var settingsError);
-            Ai = settings.CreateAiCorrector();
             _notes = new NoteManager(new NoteStore(_dataDirectory), settings);
-            _notes.SaveFailed += reason => _tray?.ShowWarning("Open Note couldn't save", $"{reason}\nYour notes are kept in memory and saving will be retried.");
+            if (_notes.IsFirstRun && settings.UiLanguage.Length == 0)
+                PickLanguage(settings);
+            Ui.Use(settings.DisplayLanguage());
+            Ai = settings.CreateAiCorrector();
+            _notes.SaveFailed += reason => _tray?.ShowWarning(Ui.T("Open Note couldn't save"), reason + "\n" + Ui.T("Your notes are kept in memory and saving will be retried."));
             _tray = new TrayService(this, _notes, _dataDirectory);
             _hotkeys = new HotkeyService();
 
             _notes.RestoreWindows();
+            if (settings.FadeWhenInactive)
+                _notes.SetFaded(true); // starting in the background, with another app in front
             ConfigureStartWithWindows(settings);
             RegisterHotkeys(settingsError);
+            // Someone who just installed Open Note sees how to use it before anything else.
+            if (_notes.IsFirstRun)
+            {
+                _notes.CreateWelcomeNote();
+                Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, ToggleHelp);
+            }
         }
         catch (Exception ex)
         {
@@ -168,7 +187,7 @@ public partial class App : Application
                 // Nothing on the desktop (every note is closed or archived): say so, rather than open
                 // the notes list, which belongs to its own shortcut.
                 if (!_notes.ToggleAll())
-                    _tray!.ShowInfo("No notes on the desktop", $"{s.NewNoteHotkey}: new note\n{s.NotesListHotkey}: all notes and archive");
+                    _tray!.ShowInfo(Ui.T("No notes on the desktop"), $"{s.NewNoteHotkey}: {Ui.T("new note")}\n{s.NotesListHotkey}: {Ui.T("all notes and archive")}");
             }),
             _hotkeys.Register(s.NotesListHotkey, ToggleNotesList),
             _hotkeys.Register(s.ApiKeysHotkey, ShowApiKeys),
@@ -176,12 +195,28 @@ public partial class App : Application
             _hotkeys.Register(s.SavedNotesHotkey, _notes.ToggleSavedSelection),
             _hotkeys.Register(s.HelpHotkey, ToggleHelp),
             _hotkeys.Register(s.QuitHotkey, ExitApp),
+            _hotkeys.Register(s.FadeHotkey, ToggleFadeWhenInactive),
         }.Where(p => p is not null).ToList();
         if (extraWarning is not null)
             problems.Insert(0, extraWarning);
 
         if (problems.Count > 0)
-            _tray!.ShowWarning("Some shortcuts are unavailable", string.Join("\n", problems) + "\nChange them via the tray icon → Edit settings.");
+            _tray!.ShowWarning(Ui.T("Some shortcuts are unavailable"), string.Join("\n", problems) + "\n" + Ui.T("Change them via the tray icon → Edit settings."));
+    }
+
+    /// <summary>The fade shortcut / tray item: turns "fade when inactive" on or off and shows the result right away.</summary>
+    internal void ToggleFadeWhenInactive()
+    {
+        var s = _notes!.Settings;
+        bool on = !s.FadeWhenInactive;
+        var error = s.Update(_dataDirectory, x => x.FadeWhenInactive = on);
+        // The shortcut is usually pressed while another app is in front.
+        _notes.SetFaded(on && !Windows.OfType<Window>().Any(w => w.IsActive));
+        if (error is not null)
+            _tray!.ShowWarning(Ui.T("Couldn't save the setting"), error);
+        else
+            _tray!.ShowInfo(on ? Ui.T("Notes fade while you use other apps") : Ui.T("Notes stay solid"),
+                on ? Ui.T("Click a note to bring them back. {0} turns this off.", s.FadeHotkey) : Ui.T("{0} turns fading back on.", s.FadeHotkey));
     }
 
     internal void ShowAllNotes()
@@ -253,7 +288,7 @@ public partial class App : Application
         if (_apiKeys is null)
         {
             var s = _notes!.Settings;
-            _apiKeys = new ApiKeysWindow(s.GeminiApiKeys, SaveGeminiKeys);
+            _apiKeys = new ApiKeysWindow(s.GeminiApiKeys, SaveGeminiKeys, s.Native(), s.Learning(), SaveLanguages);
             _apiKeys.Closed += (_, _) =>
             {
                 _apiKeys = null;
@@ -262,6 +297,44 @@ public partial class App : Application
         }
         _apiKeys.Show();
         _apiKeys.Activate();
+    }
+
+    /// <summary>
+    /// The very first start: which language Open Note speaks. A language other than English is
+    /// also taken as your own language for Check with AI (someone picking English may well be
+    /// learning it, so then that is still guessed from Windows).
+    /// </summary>
+    void PickLanguage(AppSettings settings)
+    {
+        var picker = new LanguagePickWindow(settings.DisplayLanguage());
+        picker.ShowDialog();
+        var chosen = picker.Chosen;
+        settings.Update(_dataDirectory, x =>
+        {
+            x.UiLanguage = chosen.Code;
+            if (x.NativeLanguage.Length == 0 && chosen != Language.English)
+                x.NativeLanguage = chosen.Code;
+        });
+    }
+
+    /// <summary>Changes the display language (from the how-to card); windows opened from now on use it.</summary>
+    internal void SetUiLanguage(Language language)
+    {
+        var error = _notes!.Settings.Update(_dataDirectory, x => x.UiLanguage = language.Code);
+        Ui.Use(language);
+        if (error is not null)
+            _tray!.ShowWarning(Ui.T("Couldn't save the setting"), error);
+    }
+
+    /// <summary>Saves your language and the one you're learning; Check with AI, spell check and read aloud follow them at once.</summary>
+    void SaveLanguages(Language native, Language learning)
+    {
+        var s = _notes!.Settings;
+        var error = s.Update(_dataDirectory, x => (x.NativeLanguage, x.LearningLanguage) = (native.Code, learning.Code));
+        Ai = s.CreateAiCorrector();
+        _notes.ApplyLanguages();
+        if (error is not null)
+            _tray!.ShowWarning(Ui.T("Couldn't save the languages"), error);
     }
 
     /// <summary>Saves checked keys to settings.json and starts using them right away.</summary>
@@ -303,9 +376,15 @@ public partial class App : Application
         (s.GeminiApiKeys, s.GeminiModels) = (fresh.GeminiApiKeys, fresh.GeminiModels);
         (s.OpenCodeApiKey, s.OpenCodeModels, s.AiServices) = (fresh.OpenCodeApiKey, fresh.OpenCodeModels, fresh.AiServices);
         (s.PickNotesHotkey, s.SavedNotesHotkey) = (fresh.PickNotesHotkey, fresh.SavedNotesHotkey);
-        (s.KeepNotesOnTop, s.NoteEffects) = (fresh.KeepNotesOnTop, fresh.NoteEffects);
+        (s.KeepNotesOnTop, s.NoteEffects, s.UiLanguage, s.HelpLanguage) = (fresh.KeepNotesOnTop, fresh.NoteEffects, fresh.UiLanguage, fresh.HelpLanguage);
+        Ui.Use(s.DisplayLanguage());
+        (s.FadeWhenInactive, s.FadeHotkey) = (fresh.FadeWhenInactive, fresh.FadeHotkey);
+        (s.NativeLanguage, s.LearningLanguage) = (fresh.NativeLanguage, fresh.LearningLanguage);
+        if (!s.FadeWhenInactive)
+            _notes.SetFaded(false);
         (s.ApiKeysHotkey, s.HelpHotkey, s.QuitHotkey) = (fresh.ApiKeysHotkey, fresh.HelpHotkey, fresh.QuitHotkey);
         _notes.RefreshTopmost();
+        _notes.ApplyLanguages();
         Ai = s.CreateAiCorrector();
         _hotkeys!.UnregisterAll();
         RegisterHotkeys(error);
@@ -336,7 +415,7 @@ public partial class App : Application
             _help.Close();
             return;
         }
-        _help = new HelpWindow(_notes!.Settings);
+        _help = new HelpWindow(_notes!.Settings, SetUiLanguage);
         _help.Closed += (_, _) =>
         {
             _help = null;

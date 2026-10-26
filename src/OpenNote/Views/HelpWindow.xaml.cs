@@ -20,37 +20,25 @@ internal partial class HelpWindow : Window
     static readonly Brush KeyBrush = Frozen(Color.FromRgb(0x5A, 0x24, 0x1E));
     static readonly Brush TextBrush = Frozen(Color.FromRgb(0x3B, 0x2A, 0x1E));
 
-    bool _closing;
+    readonly AppSettings _settings;
+    readonly Action<Core.Language> _setLanguage;
+    bool _closing, _choosing;
 
-    public HelpWindow(AppSettings s)
+    /// <param name="setLanguage">Changes the app's display language (and remembers it).</param>
+    public HelpWindow(AppSettings s, Action<Core.Language> setLanguage)
     {
         InitializeComponent();
-        AddRows(Anywhere,
-        [
-            (s.NewNoteHotkey, "New note"),
-            (s.ToggleAllHotkey, "Hide / show all notes"),
-            (s.NotesListHotkey, "All notes and archive"),
-            (s.PickNotesHotkey, "Choose notes to keep"),
-            (s.SavedNotesHotkey, "Show the kept notes"),
-            (s.ApiKeysHotkey, "Gemini keys for AI"),
-            (s.HelpHotkey, "This guide"),
-            (s.QuitHotkey, "Quit Open Note"),
-        ]);
-        AddRows(InNote,
-        [
-            ("Ctrl+B / I", "Bold / italic"),
-            ("/-   />", "Bullet / checkbox"),
-            ("Ctrl+G", "Check or translate (AI)"),
-            ("Ctrl+R", "Read aloud"),
-            ("Ctrl+Shift+S", "Star: important"),
-            ("Ctrl+N", "New note next to it"),
-            ("Ctrl+W", "Close the note"),
-            ("Ctrl+D", "Archive the note"),
-        ]);
+        _settings = s;
+        _setLanguage = setLanguage;
+        Fill();
 
         // Closing deactivates the window too, so guard against closing twice.
         Closing += (_, _) => _closing = true;
-        Deactivated += (_, _) => CloseOnce();
+        Deactivated += (_, _) =>
+        {
+            if (!_choosing) // the language list is open
+                CloseOnce();
+        };
         MouseLeftButtonUp += (_, _) => CloseOnce();
         KeyDown += (_, e) =>
         {
@@ -66,13 +54,76 @@ internal partial class HelpWindow : Window
             Close();
     }
 
+    /// <summary>The language pill: a list of the seven languages; picking one changes the whole app.</summary>
+    void LanguageButton_Click(object sender, RoutedEventArgs e)
+    {
+        var menu = new ContextMenu { PlacementTarget = LanguageButton, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+        foreach (var language in Core.Language.All)
+        {
+            var item = new MenuItem { Header = language.NativeName, IsChecked = language == Ui.Current };
+            item.Click += (_, _) =>
+            {
+                _setLanguage(language);
+                Fill();
+            };
+            menu.Items.Add(item);
+        }
+        _choosing = true;
+        menu.Closed += (_, _) =>
+        {
+            _choosing = false;
+            Activate(); // back to the card, so clicking elsewhere still closes it
+        };
+        menu.IsOpen = true;
+    }
+
+    /// <summary>Writes the card in the display language (the shortcuts as set in settings.json).</summary>
+    void Fill()
+    {
+        var s = _settings;
+        Subtitle.Text = Ui.T("your sticky notes, and the keys that move them");
+        LanguageText.Text = Ui.Current.NativeName + "  ▾";
+        AnywhereHeading.Text = Ui.T("Anywhere");
+        InNoteHeading.Text = Ui.T("In a note");
+        // Word joiners keep the shortcut on one line.
+        Tips.Text = Ui.T("Drag a note by its top bar · throw it on the bin to archive · ☆ marks it important · with {0} on, notes turn see-through while you use other apps; click one to bring them back.",
+            s.FadeHotkey.Replace("+", "⁠+⁠"));
+        CloseHint.Text = Ui.T("Click anywhere or press Esc to close");
+
+        Anywhere.Children.Clear();
+        InNote.Children.Clear();
+        AddRows(Anywhere,
+        [
+            (s.NewNoteHotkey, Ui.T("New note")),
+            (s.ToggleAllHotkey, Ui.T("Hide / show all notes")),
+            (s.NotesListHotkey, Ui.T("All notes and archive")),
+            (s.PickNotesHotkey, Ui.T("Choose notes to keep")),
+            (s.SavedNotesHotkey, Ui.T("Show the kept notes")),
+            (s.ApiKeysHotkey, Ui.T("AI languages & keys")),
+            (s.FadeHotkey, Ui.T("Fade notes in other apps")),
+            (s.HelpHotkey, Ui.T("This guide")),
+            (s.QuitHotkey, Ui.T("Quit Open Note")),
+        ]);
+        AddRows(InNote,
+        [
+            ("Ctrl+B / I", Ui.T("Bold / italic")),
+            ("/-   />", Ui.T("Bullet / checkbox")),
+            ("Ctrl+ = / -", Ui.T("Text size")),
+            ("Ctrl+G", Ui.T("Check or translate (AI)")),
+            ("Ctrl+R", Ui.T("Read aloud")),
+            ("Ctrl+Shift+S", Ui.T("Star: important")),
+            ("Ctrl+W", Ui.T("Close the note")),
+            ("Ctrl+D", Ui.T("Archive the note")),
+        ]);
+    }
+
     static void AddRows(Panel panel, (string Keys, string What)[] rows)
     {
         foreach (var (keys, what) in rows)
         {
             if (string.IsNullOrWhiteSpace(keys))
                 continue; // a shortcut turned off in settings.json
-            var row = new Grid { Margin = new Thickness(0, 1.5, 0, 1.5) };
+            var row = new Grid { Margin = new Thickness(0, 0.5, 0, 0.5) };
             // The key column is as wide as the longest shortcut in this list, the same in every row.
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, SharedSizeGroup = "Keys", MinWidth = 96 });
             row.ColumnDefinitions.Add(new ColumnDefinition());

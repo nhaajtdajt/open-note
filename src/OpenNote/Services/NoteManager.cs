@@ -49,10 +49,27 @@ internal sealed class NoteManager
     {
         foreach (var note in _data.Notes.Where(n => n.State == NoteState.Visible).ToList())
             OpenWindow(note, activate: false);
-
-        if (_store.IsFirstRun)
-            CreateNote(text: WelcomeText(), heading: "Welcome to Open Note");
     }
+
+    /// <summary>The first note, in the display language: a few things to try.</summary>
+    public void CreateWelcomeNote() => CreateNote(text: WelcomeText(), heading: Ui.T("Welcome to Open Note"));
+
+    /// <summary>After your languages change: spell check (and its dictionary) follow them in every open note.</summary>
+    public void ApplyLanguages()
+    {
+        foreach (var w in _windows.Values)
+            w.ApplyLanguages();
+    }
+
+    /// <summary>Fades every open note to 10% (another app is in use), or brings them back.</summary>
+    public void SetFaded(bool faded)
+    {
+        foreach (var w in _windows.Values)
+            w.SetFaded(faded);
+    }
+
+    /// <summary>True on the very first start (no notes file yet).</summary>
+    public bool IsFirstRun => _store.IsFirstRun;
 
     public Note CreateNote(NoteWindow? near = null, string text = "", string heading = "")
     {
@@ -355,13 +372,13 @@ internal sealed class NoteManager
 
     string WelcomeText() =>
         $"""
-        ☐ Drag the header to move me
-        ☐ Click the header to rename me
-        ☐ Type /> for a box, /- for a bullet
-        ☐ Right-click the header for colors
+        ☐ {Ui.T("Drag the header to move me")}
+        ☐ {Ui.T("Click the title to rename me")}
+        ☐ {Ui.T("Type /> for a box, /- for a bullet")}
+        ☐ {Ui.T("Right-click the header for colors")}
 
-        {Settings.NewNoteHotkey}  new note
-        {Settings.ToggleAllHotkey}  show or hide notes
-        {Settings.NotesListHotkey}  all notes
+        {Settings.NewNoteHotkey}  {Ui.T("new note")}
+        {Settings.ToggleAllHotkey}  {Ui.T("show or hide notes")}
+        {Settings.NotesListHotkey}  {Ui.T("all notes")}
         """.Replace("\n", "\r\n").Replace("\r\r\n", "\r\n");
 }

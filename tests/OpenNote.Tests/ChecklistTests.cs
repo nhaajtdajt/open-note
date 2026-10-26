@@ -26,6 +26,22 @@ public class ChecklistTests
     }
 
     [Fact]
+    public void Items_AreTheTextAfterEachBox_DoneOnesMarked()
+    {
+        var text = "☐ eggs\n☑ milk\n• bread\nplain";
+        Assert.Equal([(2, 6, false), (9, 13, true)], Checklist.Items(text));
+    }
+
+    [Fact]
+    public void Items_DoneTextStopsAtTheLineEnd()
+    {
+        Assert.Equal([(2, 10, true)], Checklist.Items("☑ call mom\r\nnext line"));
+        Assert.Equal([(2, 2, true)], Checklist.Items("☑ "));
+        Assert.Empty(Checklist.Items(""));
+        Assert.Empty(Checklist.Items("☑no space is not a box"));
+    }
+
+    [Fact]
     public void IsBoxAt_OnlyAtLineStart()
     {
         var text = "a ☐ b\r\n☐ c";

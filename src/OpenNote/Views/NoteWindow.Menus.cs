@@ -22,7 +22,7 @@ internal partial class NoteWindow
         {
             var suggestions = error.Suggestions.Take(5).ToList();
             if (suggestions.Count == 0)
-                menu.Items.Add(new MenuItem { Header = "No spelling suggestions", IsEnabled = false });
+                menu.Items.Add(new MenuItem { Header = Ui.T("No spelling suggestions"), IsEnabled = false });
             foreach (var suggestion in suggestions)
             {
                 var item = new MenuItem { Header = suggestion, FontWeight = FontWeights.SemiBold };
@@ -51,13 +51,13 @@ internal partial class NoteWindow
     }
 
     MenuItem CommandItem(string header, string gesture, ICommand command) =>
-        new() { Header = header, InputGestureText = gesture, Command = command, CommandTarget = Editor };
+        new() { Header = Ui.T(header), InputGestureText = gesture, Command = command, CommandTarget = Editor };
 
     // ---------- Header & note menu ----------
 
     /// <summary>
-    /// Drag moves the note; a click that doesn't move it renames the note (after a short wait, see
-    /// ScheduleRename); a double-click toggles between the normal size and the last size.
+    /// Drag moves the note; a click on the title that doesn't move it renames the note (after a
+    /// short wait, see ScheduleRename); a double-click toggles between the normal size and the last size.
     /// </summary>
     void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -72,13 +72,27 @@ internal partial class NoteWindow
         }
         if (TitleEditor.IsVisible)
             return;
+        bool onTitle = OnTitle(e);
         var before = Win32.GetBounds(_hwnd);
         BeginDrag();
         DragMove(); // returns when the button is released
         bool moved = Win32.GetBounds(_hwnd) != before;
         EndDrag(moved);
-        if (!moved)
+        if (!moved && onTitle)
             ScheduleRename();
+    }
+
+    /// <summary>Width of the header's title column, between the badge and the buttons.</summary>
+    double TitleColumnWidth => ((Grid)TitleText.Parent).ColumnDefinitions[1].ActualWidth;
+
+    /// <summary>
+    /// True when the click is on the title itself, and never further than half the bar: the
+    /// rest of the bar is for grabbing the note, so a click there doesn't start renaming.
+    /// </summary>
+    bool OnTitle(MouseButtonEventArgs e)
+    {
+        double x = e.GetPosition(TitleText).X;
+        return x >= -4 && x <= Math.Min(TitleText.ActualWidth + 8, TitleColumnWidth / 2);
     }
 
     void Header_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
@@ -101,11 +115,12 @@ internal partial class NoteWindow
         };
 
         menu.Items.Add(ColorRow());
-        menu.Items.Add(OpacityItem());
+        menu.Items.Add(SliderItem(() => Ui.T("Glass tint {0}", Note.Opacity.ToString("P0")), MinOpacity, 1, Note.Opacity, 0.05, Ui.T("Ctrl+[ and Ctrl+]"), SetOpacity));
+        menu.Items.Add(SliderItem(() => Ui.T("Text size {0}", Note.FontSize.ToString("0")), MinFont, MaxFont, Note.FontSize, 1, Ui.T("Ctrl+wheel, or Ctrl+= / Ctrl+- (Ctrl+0 resets)"), SetFontSize));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Rename", "F2", BeginTitleEdit));
 
-        var fonts = new MenuItem { Header = "Font" };
+        var fonts = new MenuItem { Header = Ui.T("Font") };
         fonts.Items.Add(Item("Mono (Consolas)", "", () => SetFont(NoteFont.Mono), Note.Font == NoteFont.Mono));
         fonts.Items.Add(Item("Sans", "", () => SetFont(NoteFont.Sans), Note.Font == NoteFont.Sans));
         fonts.Items.Add(Item("Handwriting", "", () => SetFont(NoteFont.Hand), Note.Font == NoteFont.Hand));
@@ -153,7 +168,7 @@ internal partial class NoteWindow
             {
                 Content = swatch, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(0),
                 Background = Brushes.Transparent, BorderThickness = new Thickness(0), Cursor = Cursors.Hand,
-                ToolTip = $"{c.Name} (Ctrl+{i + 1})", Focusable = false,
+                ToolTip = $"{Ui.T(c.Name)} (Ctrl+{i + 1})", Focusable = false,
                 Template = SwatchTemplate,
             };
             button.Click += (_, _) =>
@@ -173,31 +188,30 @@ internal partial class NoteWindow
         VisualTree = new FrameworkElementFactory(typeof(ContentPresenter)),
     };
 
-    MenuItem OpacityItem()
+    /// <summary>A labelled slider in the note menu (glass tint, text size); the label follows the value.</summary>
+    static MenuItem SliderItem(Func<string> label, double min, double max, double value, double step, string tip, Action<double> set)
     {
-        var label = new TextBlock { Text = OpacityLabel(), Margin = new Thickness(0, 0, 0, 2) };
+        var text = new TextBlock { Text = label(), Margin = new Thickness(0, 0, 0, 2) };
         var slider = new Slider
         {
-            Minimum = MinOpacity, Maximum = 1, Value = Note.Opacity, Width = 170,
-            SmallChange = 0.05, LargeChange = 0.1, IsMoveToPointEnabled = true,
-            ToolTip = "Ctrl+[ and Ctrl+]",
+            Minimum = min, Maximum = max, Value = value, Width = 170,
+            SmallChange = step, LargeChange = step * 2, IsMoveToPointEnabled = true,
+            ToolTip = tip,
         };
         slider.ValueChanged += (_, e) =>
         {
-            SetOpacity(e.NewValue);
-            label.Text = OpacityLabel();
+            set(e.NewValue);
+            text.Text = label();
         };
         var panel = new StackPanel { Margin = new Thickness(0, 2, 0, 4) };
-        panel.Children.Add(label);
+        panel.Children.Add(text);
         panel.Children.Add(slider);
         return new MenuItem { Header = panel, StaysOpenOnClick = true };
     }
 
-    string OpacityLabel() => $"Glass tint {Note.Opacity:P0}";
-
     static MenuItem Item(string header, string gesture, Action action, bool isChecked = false)
     {
-        var item = new MenuItem { Header = header, InputGestureText = gesture, IsChecked = isChecked };
+        var item = new MenuItem { Header = Ui.T(header), InputGestureText = gesture, IsChecked = isChecked };
         item.Click += (_, _) => action();
         return item;
     }

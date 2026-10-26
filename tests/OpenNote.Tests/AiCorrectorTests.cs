@@ -117,7 +117,27 @@ public class AiCorrectorTests
             Assert.Null(error);
             Assert.Equal(["a", "b"], s.EffectiveGeminiKeys());
             Assert.Equal(new AppSettings().GeminiModels, s.GeminiModels);
-            Assert.Equal("gemini-flash-latest", s.GeminiModels[0]);
+            Assert.Equal(["gemini-flash-lite-latest", "gemini-flash-latest"], s.GeminiModels);
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Theory]
+    // the old default list (Flash first, retired 2.5 models) is replaced...
+    [InlineData("""["gemini-flash-latest", "gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"]""", "gemini-flash-lite-latest,gemini-flash-latest")]
+    // ...a list someone chose is kept, even with an old model in it
+    [InlineData("""["gemini-2.5-flash", "gemini-flash-latest"]""", "gemini-2.5-flash,gemini-flash-latest")]
+    public void Settings_OldDefaultModelList_IsUpgraded(string models, string expected)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "OpenNoteTests-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(AppSettings.PathIn(dir), $$"""{ "geminiModels": {{models}} }""");
+            Assert.Equal(expected, string.Join(",", AppSettings.Load(dir, out _).GeminiModels));
         }
         finally
         {

@@ -81,7 +81,7 @@ public sealed class Note
 
     IEnumerable<string> Lines() =>
         Text.Split('\n')
-            .Select(l => ImageStore.IsImageLine(l, out _) ? "[image]" : InlineMarkup.Strip(l).Trim())
+            .Select(l => ImageStore.IsImageLine(l, out _) ? Ui.T("[image]") : InlineMarkup.Strip(l).Trim())
             .Where(l => l.Length > 0);
 }
 

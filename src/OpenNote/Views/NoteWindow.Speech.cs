@@ -27,7 +27,8 @@ internal partial class NoteWindow
         if (text.Length == 0)
             return;
 
-        var problem = speech.Speak(text, LanguageHint.LooksVietnamese(text) ? SpeechService.Vietnamese : SpeechService.English);
+        var s = _manager.Settings;
+        var problem = speech.Speak(text, LanguageHint.Guess(text, s.Native(), s.Learning()));
         if (problem is not null)
             ShowNotice(problem);
     }

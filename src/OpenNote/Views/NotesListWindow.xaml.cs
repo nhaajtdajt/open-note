@@ -35,7 +35,7 @@ internal partial class NotesListWindow : Window
         };
 
         var s = manager.Settings;
-        FooterHint.Text = $"Double-click a note to open it. Press Delete to archive. {s.ToggleAllHotkey} shows or hides your notes from anywhere.";
+        FooterHint.Text = Ui.T("Double-click a note to open it. Press Delete to archive. {0} shows or hides your notes from anywhere.", s.ToggleAllHotkey);
         Refresh();
     }
 
@@ -53,8 +53,8 @@ internal partial class NotesListWindow : Window
         var query = SearchBox.Text;
         var notes = _manager.Notes;
 
-        NotesTab.Content = $"Notes  {notes.Count(n => n.State != NoteState.Archived)}";
-        ArchiveTab.Content = $"Archive  {notes.Count(n => n.State == NoteState.Archived)}";
+        NotesTab.Content = Ui.T("Notes") + $"  {notes.Count(n => n.State != NoteState.Archived)}";
+        ArchiveTab.Content = Ui.T("Archive") + $"  {notes.Count(n => n.State == NoteState.Archived)}";
 
         var items = notes
             .Where(n => (n.State == NoteState.Archived) == ShowingArchive && NoteSearch.Matches(n, query))
@@ -66,9 +66,9 @@ internal partial class NotesListWindow : Window
         List.SelectedItem = items.FirstOrDefault(i => i.Note.Id == selectedId);
 
         EmptyText.Visibility = items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        EmptyText.Text = !string.IsNullOrWhiteSpace(query) ? "No notes match your search."
-            : ShowingArchive ? "Archived notes show up here.\nArchive a note with Ctrl+D."
-            : $"No notes yet.\nPress {_manager.Settings.NewNoteHotkey} anywhere to create one.";
+        EmptyText.Text = !string.IsNullOrWhiteSpace(query) ? Ui.T("No notes match your search.")
+            : ShowingArchive ? Ui.T("Archived notes show up here.\nArchive a note with Ctrl+D.")
+            : Ui.T("No notes yet.\nPress {0} anywhere to create one.", _manager.Settings.NewNoteHotkey);
     }
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
@@ -155,7 +155,7 @@ internal partial class NotesListWindow : Window
     void ConfirmDelete(Note note)
     {
         var title = note.Title.Length > 40 ? note.Title[..40] + "…" : note.Title;
-        var answer = MessageBox.Show(this, $"Delete \"{title}\" permanently?\nThis can't be undone.",
+        var answer = MessageBox.Show(this, Ui.T("Delete \"{0}\" permanently?\nThis can't be undone.", title),
             "Open Note", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No);
         if (answer == MessageBoxResult.Yes)
             _manager.DeleteForever(note);
@@ -166,7 +166,7 @@ internal partial class NotesListWindow : Window
 internal sealed class NoteItem(Note note)
 {
     public Note Note { get; } = note;
-    public string Title => (Note.IsImportant ? "★ " : "") + (Note.IsEmpty ? "(empty note)" : Note.Title);
+    public string Title => (Note.IsImportant ? "★ " : "") + (Note.IsEmpty ? Ui.T("(empty note)") : Note.Title);
     public string Preview => Note.Preview;
     public Visibility PreviewVisibility => Preview.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -175,8 +175,8 @@ internal sealed class NoteItem(Note note)
         get
         {
             var parts = new List<string>();
-            if (Note.State == NoteState.Hidden) parts.Add("closed");
-            if (Note.IsLocked) parts.Add("locked");
+            if (Note.State == NoteState.Hidden) parts.Add(Ui.T("closed"));
+            if (Note.IsLocked) parts.Add(Ui.T("locked"));
             parts.Add(Note.ModifiedUtc.ToLocalTime().ToString("d MMM yyyy, HH:mm", CultureInfo.CurrentCulture));
             var meta = string.Join(", ", parts);
             return char.ToUpper(meta[0]) + meta[1..];
