@@ -1,9 +1,7 @@
 using System.IO;
 using System.Diagnostics;
-using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
-using System.Windows.Interop;
 using OpenNote.Native;
 
 using OpenNote.Core;
@@ -45,6 +43,7 @@ internal sealed class TrayService : IDisposable
         menu.Items.Add(Item("Choose notes to keep…", s.PickNotesHotkey, _notes.PickSelection));
         menu.Items.Add(Item("Show saved selection", s.SavedNotesHotkey, _notes.ToggleSavedSelection));
         menu.Items.Add(Item("All notes and archive…", s.NotesListHotkey, _app.ShowNotesList));
+        menu.Items.Add(Item("Open a note file…", "", _app.ChooseNoteFile));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("Keep notes on top", "", () =>
         {
@@ -74,15 +73,11 @@ internal sealed class TrayService : IDisposable
         menu.Items.Add(Item("Open data folder", "", () => Process.Start("explorer.exe", $"\"{RealDataDirectory()}\"")));
         menu.Items.Add(new Separator());
         menu.Items.Add(Item("How to use…", s.HelpHotkey, _app.ToggleHelp));
-        menu.Items.Add(Item("Exit", s.QuitHotkey, _app.ExitApp));
+        menu.Items.Add(Item("Exit", s.QuitHotkey, _app.QuitFromUser));
 
         // Classic tray-menu rule: the menu must belong to the foreground window, otherwise it
-        // won't close when you click elsewhere.
-        menu.Opened += (_, _) =>
-        {
-            if (PresentationSource.FromVisual(menu) is HwndSource source)
-                SetForegroundWindow(source.Handle);
-        };
+        // won't close when you click elsewhere. Only before opening: activating the popup once the
+        // menu has focus makes WPF move focus to the popup's root, which closes the menu at once.
         SetForegroundWindow(_icon.Handle);
         menu.IsOpen = true;
     }

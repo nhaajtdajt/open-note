@@ -103,6 +103,18 @@ public sealed class NoteStoreTests : IDisposable
     }
 
     [Fact]
+    public void TheMark_IsTheStarByDefault_AndAFlowerIsRemembered()
+    {
+        var store = new NoteStore(_dir);
+        store.Save(new StoreData { Notes = [new Note { IsImportant = true }, new Note { IsImportant = true, Mark = "clover" }] });
+        var notes = new NoteStore(_dir).Load().Notes;
+        Assert.Equal(NoteMarks.Star, notes[0].Mark);
+        Assert.Equal("clover", notes[1].Mark);
+        Assert.True(NoteMarks.IsFlower(notes[1].Mark));
+        Assert.False(NoteMarks.IsFlower("tulip")); // a hand-edited unknown mark shows the star
+    }
+
+    [Fact]
     public void Save_KeepsNonAsciiReadableInFile()
     {
         var store = new NoteStore(_dir);
@@ -146,6 +158,30 @@ public sealed class NoteStoreTests : IDisposable
         Assert.Empty(store.Load().Notes);
         Assert.False(store.IsFirstRun);
         Assert.Single(Directory.GetFiles(_dir, "notes.corrupt-*.json"));
+    }
+
+    [Fact]
+    public void Settings_WithNullsInLists_LoadAndBuildTheAiChecker()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(AppSettings.PathIn(_dir), """{ "aiServices": [null, { "baseUrl": "https://x", "models": [null, "m"] }], "geminiApiKeys": [null, "k"], "geminiModels": [null] }""");
+        var s = AppSettings.Load(_dir, out var error);
+        Assert.Null(error);
+        Assert.Equal(["m"], Assert.Single(s.AiServices).Models);
+        Assert.Equal(["k"], s.GeminiApiKeys);
+        Assert.Equal(new AppSettings().GeminiModels, s.GeminiModels);
+        _ = s.CreateAiCorrector(); // used to throw on the null service
+    }
+
+    [Fact]
+    public void Settings_ThatCantBeRead_KeepAiAgentsOut()
+    {
+        Directory.CreateDirectory(_dir);
+        File.WriteAllText(AppSettings.PathIn(_dir), """{ "allowAgents": false, oops }""");
+        var s = AppSettings.Load(_dir, out var error);
+        Assert.NotNull(error);
+        Assert.True(s.ReadFailed);
+        Assert.False(s.AllowAgents);
     }
 
     [Fact]

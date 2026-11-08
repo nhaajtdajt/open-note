@@ -10,7 +10,8 @@ public static class NoteSearch
     /// Case- and accent-insensitive "contains" for every word in the query,
     /// so "ghi chu" finds "Ghi chú" and "milk eggs" finds a note mentioning both.
     /// </summary>
-    public static bool Matches(Note note, string? query) => Matches(note.Heading + "\n" + InlineMarkup.Strip(note.Text), query);
+    public static bool Matches(Note note, string? query) =>
+        string.IsNullOrWhiteSpace(query) || Matches(note.Heading + "\n" + InlineMarkup.Strip(note.Text), query);
 
     public static bool Matches(string text, string? query)
     {

@@ -15,6 +15,16 @@ public class ScreenMathTests
     }
 
     [Fact]
+    public void OnlyTheShadowMarginOnScreen_IsBroughtBack()
+    {
+        // The window's top 12 px are its transparent shadow margin; those alone don't make the header reachable.
+        var note = new PixelRect(100, Primary.Bottom - 12, 260, 240);
+        Assert.Equal(note, ScreenMath.EnsureVisible(note, [Primary]));
+        var moved = ScreenMath.EnsureVisible(note, [Primary], topInset: 12);
+        Assert.Equal(new PixelRect(100, Primary.Bottom - 240, 260, 240), moved);
+    }
+
+    [Fact]
     public void NoteOnSecondMonitor_IsUnchangedWhileThatMonitorExists()
     {
         var note = new PixelRect(-1200, 300, 260, 240);

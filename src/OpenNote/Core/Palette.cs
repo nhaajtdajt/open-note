@@ -5,6 +5,13 @@ namespace OpenNote.Core;
 /// <summary>A note color: the paper itself and the slightly deeper "adhesive strip" across its top.</summary>
 public sealed record NoteColor(string Name, string Hex, string StripHex);
 
+/// <summary>A text color: one shade for light papers and a lighter one for dark papers (both stay readable).</summary>
+public sealed record TextColor(string Name, string Hex, string DarkPaperHex)
+{
+    /// <summary>The name stored in the note text: {red}…{/}.</summary>
+    public string Tag => Name.ToLowerInvariant();
+}
+
 public static class Palette
 {
     // Soft, paper-like tones in the spirit of real sticky-note pads; the strip is the same hue, a step deeper.
@@ -21,6 +28,15 @@ public static class Palette
     ];
 
     public static NoteColor Default => Colors[0];
+
+    public static readonly IReadOnlyList<TextColor> TextColors =
+    [
+        new("Red", "#C62828", "#FF8A80"),
+        new("Orange", "#D84315", "#FFB74D"),
+        new("Green", "#2E7D32", "#81C784"),
+        new("Blue", "#1565C0", "#82B1FF"),
+        new("Purple", "#7B1FA2", "#CE93D8"),
+    ];
 
     /// <summary>Parses #RRGGBB; anything unparsable falls back to the default canary.</summary>
     public static (byte R, byte G, byte B) ParseRgb(string? hex)

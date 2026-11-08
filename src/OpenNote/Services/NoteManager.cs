@@ -19,6 +19,7 @@ internal sealed class NoteManager
     readonly Dictionary<Guid, NoteWindow> _windows = [];
     readonly DispatcherTimer _saveTimer;
     bool _dirty, _saveFailureReported;
+    string _lastSaveError = "";
     PickNotesWindow? _picker;
     Guid? _lastActive;
 
@@ -35,7 +36,7 @@ internal sealed class NoteManager
         _data = store.Load();
         Images = new ImageStore(store.Directory);
         if (store.LoadedCleanly)
-            Images.DeleteUnreferenced(_data.Notes.Select(n => n.Text));
+            Images.DeleteUnreferenced(_data.Notes.Select(n => n.Text), store.OtherNoteFiles());
         _saveTimer = new DispatcherTimer(DispatcherPriority.Background) { Interval = SaveDelay };
         _saveTimer.Tick += (_, _) => SaveNow();
     }
@@ -54,6 +55,16 @@ internal sealed class NoteManager
     /// <summary>The first note, in the display language: a few things to try.</summary>
     public void CreateWelcomeNote() => CreateNote(text: WelcomeText(), heading: Ui.T("Welcome to Open Note"));
 
+    /// <summary>
+    /// The current "what's new" note. Change it (and <see cref="WhatsNewText"/>) for a release
+    /// that should tell people what changed; settings.json remembers the last one shown.
+    /// </summary>
+    public const string WhatsNewId = "flower";
+
+    /// <summary>Once after an update: what changed, in a bigger note in the middle of the screen.</summary>
+    public void CreateWhatsNewNote() =>
+        CreateNote(text: WhatsNewText(), heading: Ui.T("Open Note has been updated"), activate: false, centered: new System.Windows.Size(400, 440));
+
     /// <summary>After your languages change: spell check (and its dictionary) follow them in every open note.</summary>
     public void ApplyLanguages()
     {
@@ -71,13 +82,16 @@ internal sealed class NoteManager
     /// <summary>True on the very first start (no notes file yet).</summary>
     public bool IsFirstRun => _store.IsFirstRun;
 
-    public Note CreateNote(NoteWindow? near = null, string text = "", string heading = "")
+    /// <param name="activate">False for a note an AI agent writes: it shows up without taking the keyboard from the user.</param>
+    /// <param name="centered">Opens it in the middle of the main screen at this size (in DIPs), not at the mouse.</param>
+    public Note CreateNote(NoteWindow? near = null, string text = "", string heading = "", string? color = null, bool activate = true,
+        System.Windows.Size? centered = null)
     {
         var note = new Note
         {
             Heading = heading,
             Text = text,
-            Color = Settings.DefaultColor,
+            Color = color ?? Settings.DefaultColor,
             Opacity = Settings.DefaultOpacity,
             FontSize = Settings.DefaultFontSize,
             Font = Settings.DefaultFont,
@@ -88,9 +102,34 @@ internal sealed class NoteManager
         var spawn = near is not null
             ? new PixelPoint(near.Note.X + 32, near.Note.Y + 32)
             : Offset(Native.Win32.CursorPosition(), -60, -12);
-        OpenWindow(note, activate: true, spawn);
+        OpenWindow(note, activate, spawn, centered);
         Changed();
         return note;
+    }
+
+    /// <summary>
+    /// Opens an .onote file as a new note (its pictures are copied into this data folder), at the
+    /// mouse, in front. Throws <see cref="InvalidDataException"/> for a file that isn't one.
+    /// </summary>
+    public Note ImportNote(byte[] file)
+    {
+        var note = NoteFile.FromOnote(file, Images.Save);
+        var at = Offset(Native.Win32.CursorPosition(), -60, -12);
+        if (note.Width > 0 && note.Height > 0)
+            (note.X, note.Y) = (at.X, at.Y); // its saved size, brought fully on screen when it opens
+        _data.Notes.Add(note);
+        OpenWindow(note, activate: true, at);
+        Changed();
+        return note;
+    }
+
+    /// <summary>Adds lines at the end of a note; an open note shows them right away.</summary>
+    public void AppendText(Note note, string text)
+    {
+        note.Text = note.Text.Trim('\r', '\n').Length == 0 ? text : note.Text.TrimEnd('\r', '\n') + "\r\n" + text;
+        if (_windows.TryGetValue(note.Id, out var window))
+            window.ReloadText();
+        NoteEdited(note);
     }
 
     /// <summary>Shows a note (restoring it from hidden or archived) and focuses it.</summary>
@@ -107,6 +146,7 @@ internal sealed class NoteManager
     /// </summary>
     public void CloseNote(Note note)
     {
+        CommitTitle(note);
         if (note.IsEmpty)
         {
             DeleteForever(note);
@@ -119,6 +159,7 @@ internal sealed class NoteManager
 
     public void ArchiveNote(Note note)
     {
+        CommitTitle(note);
         if (note.IsEmpty)
         {
             DeleteForever(note);
@@ -127,6 +168,13 @@ internal sealed class NoteManager
         note.State = NoteState.Archived;
         CloseWindow(note);
         Changed();
+    }
+
+    /// <summary>A title being typed (F2) is kept: the × and the menu don't take focus, so it isn't committed by itself.</summary>
+    void CommitTitle(Note note)
+    {
+        if (_windows.TryGetValue(note.Id, out var window))
+            window.CommitTitleEdit();
     }
 
     public void DeleteForever(Note note)
@@ -302,6 +350,14 @@ internal sealed class NoteManager
             SaveNow();
     }
 
+    /// <summary>Saves now; false (with the reason) when the notes couldn't be written.</summary>
+    public bool TrySave(out string reason)
+    {
+        Flush();
+        reason = _lastSaveError;
+        return !_dirty;
+    }
+
     public void Shutdown()
     {
         IsShuttingDown = true;
@@ -309,13 +365,14 @@ internal sealed class NoteManager
         foreach (var w in _windows.Values.ToList())
             w.CloseFromManager();
         _windows.Clear();
+        Flush(); // a title being renamed is only committed as its window closes
     }
 
-    void OpenWindow(Note note, bool activate, PixelPoint? spawnAt = null)
+    void OpenWindow(Note note, bool activate, PixelPoint? spawnAt = null, System.Windows.Size? centered = null)
     {
         if (!_windows.TryGetValue(note.Id, out var window))
         {
-            window = new NoteWindow(this, note, spawnAt) { ShowActivated = activate };
+            window = new NoteWindow(this, note, spawnAt) { ShowActivated = activate, CenteredSize = centered };
             _windows[note.Id] = window;
         }
 
@@ -359,6 +416,7 @@ internal sealed class NoteManager
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            _lastSaveError = ex.Message;
             // Keep the data in memory and retry; tell the user once rather than on every keystroke.
             if (!_saveFailureReported)
                 SaveFailed?.Invoke(ex.Message);
@@ -369,6 +427,18 @@ internal sealed class NoteManager
     }
 
     static PixelPoint Offset(PixelPoint p, int dx, int dy) => new(p.X + dx, p.Y + dy);
+
+    string WhatsNewText() =>
+        $"""
+        {Ui.T("This is the flower version. What's new:")}
+        • {Ui.T("AI agents (Claude Code, Codex, Cursor…) can now read your notes and write new ones for you: {0} → AI agents", Settings.HelpHotkey)}
+        • {Ui.T("Text color: select text, then Ctrl+H or right-click → Text color")}
+        • {Ui.T("Save a note as a file (⋯ → Save as file…): .txt for just the text, or .onote to open it again in Open Note with its colors and pictures, on any PC")}
+        • {Ui.T("Flowers: click the ☆ of a note to mark it with a flower")}
+        • {Ui.T("A new look for the flower version, and a little letter hidden in {0}", Settings.HelpHotkey)}
+
+        {Ui.T("You can delete this note: it won't come back.")}
+        """.Replace("\n", "\r\n").Replace("\r\r\n", "\r\n");
 
     string WelcomeText() =>
         $"""

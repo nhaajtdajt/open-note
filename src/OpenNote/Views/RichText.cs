@@ -2,6 +2,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
+using System.Windows.Media;
 using OpenNote.Core;
 
 namespace OpenNote.Views;
@@ -24,7 +25,8 @@ internal static class RichText
     public const char PictureChar = '￼';
 
     /// <param name="createImage">Builds the picture for a picture line; null shows picture lines as text.</param>
-    public static void Load(FlowDocument doc, string text, Func<string, InlineUIContainer>? createImage = null)
+    /// <param name="darkPaper">Draws text colors in their shades for a dark note.</param>
+    public static void Load(FlowDocument doc, string text, Func<string, InlineUIContainer>? createImage = null, bool darkPaper = false)
     {
         doc.Blocks.Clear();
         foreach (var line in text.Split('\n'))
@@ -36,7 +38,12 @@ internal static class RichText
             }
             var paragraph = new Paragraph();
             foreach (var span in InlineMarkup.Parse(line.TrimEnd('\r')))
-                paragraph.Inlines.Add(StyledRun(span.Text, span.Bold, span.Italic));
+            {
+                var run = StyledRun(span.Text, span.Bold, span.Italic);
+                if (span.Color is not null)
+                    run.Foreground = TextBrush(span.Color, darkPaper);
+                paragraph.Inlines.Add(run);
+            }
             doc.Blocks.Add(paragraph);
             MarkDoneItems(paragraph);
         }
@@ -193,7 +200,7 @@ internal static class RichText
                 switch (inline)
                 {
                     case Run run:
-                        spans.Add(new StyledSpan(run.Text, IsBold(run), IsItalic(run)));
+                        spans.Add(new StyledSpan(run.Text, IsBold(run), IsItalic(run), ColorOf(run.Foreground)));
                         break;
                     case LineBreak:
                         spans.Add(new StyledSpan("\n", false, false));
@@ -212,6 +219,67 @@ internal static class RichText
 
         Walk(p.Inlines);
         Flush(evenIfEmpty: !hadPicture); // an empty paragraph is an empty line; a picture line isn't followed by one
+    }
+
+    // ---------- Text colors ----------
+
+    static readonly Dictionary<(string, bool), SolidColorBrush> TextBrushes = Palette.TextColors
+        .SelectMany(c => new[] { ((c.Tag, false), c.Hex), ((c.Tag, true), c.DarkPaperHex) })
+        .ToDictionary(x => x.Item1, x => (SolidColorBrush)new SolidColorBrush(ToColor(x.Item2)).GetAsFrozen());
+
+    static Color ToColor(string hex)
+    {
+        var (r, g, b) = Palette.ParseRgb(hex);
+        return Color.FromRgb(r, g, b);
+    }
+
+    /// <summary>The brush of a text color (a <see cref="TextColor.Tag"/>) on a light or a dark note.</summary>
+    public static SolidColorBrush TextBrush(string tag, bool darkPaper) => TextBrushes[(tag, darkPaper)];
+
+    /// <summary>Which text color a brush draws (in either shade), or null for anything else, such as the note's ink.</summary>
+    public static string? ColorOf(Brush? brush)
+    {
+        if (brush is SolidColorBrush b)
+            foreach (var (key, shade) in TextBrushes) // runs for every run on every save: no LINQ
+                if (shade.Color == b.Color)
+                    return key.Item1;
+        return null;
+    }
+
+    /// <summary>
+    /// Redraws every text color in the shade for the note's paper, and clears any other color set
+    /// on the text (the ink a "No color" leaves behind), so the text follows the note's ink again.
+    /// Only touches what differs, so it adds nothing to the undo history when all is right.
+    /// </summary>
+    public static void FixTextColors(FlowDocument doc, bool darkPaper)
+    {
+        foreach (var p in doc.Blocks.OfType<Paragraph>())
+        {
+            Fix(p);
+            foreach (var inline in Elements(p.Inlines))
+                Fix(inline);
+        }
+
+        void Fix(TextElement e)
+        {
+            if (e.ReadLocalValue(TextElement.ForegroundProperty) is not Brush local)
+                return;
+            if (ColorOf(local) is not { } tag)
+                e.ClearValue(TextElement.ForegroundProperty);
+            else if (TextBrush(tag, darkPaper) is var want && ((SolidColorBrush)local).Color != want.Color)
+                e.Foreground = want;
+        }
+
+        static IEnumerable<Inline> Elements(InlineCollection inlines)
+        {
+            foreach (var inline in inlines)
+            {
+                yield return inline;
+                if (inline is Span span)
+                    foreach (var inner in Elements(span.Inlines))
+                        yield return inner;
+            }
+        }
     }
 
     static bool IsBold(TextElement e) => e.FontWeight.ToOpenTypeWeight() >= 600;

@@ -29,12 +29,14 @@ public static class ScreenMath
     /// Returns <paramref name="note"/> unchanged when enough of its drag strip is on some
     /// monitor to grab it; otherwise moves (and if needed shrinks) it onto the best monitor.
     /// </summary>
-    public static PixelRect EnsureVisible(PixelRect note, IReadOnlyList<PixelRect> workAreas, int minVisible = 48)
+    /// <param name="topInset">Transparent pixels above the visible note (its shadow margin): the strip starts below them.</param>
+    public static PixelRect EnsureVisible(PixelRect note, IReadOnlyList<PixelRect> workAreas, int minVisible = 48, int topInset = 0)
     {
         if (workAreas.Count == 0)
             return note;
 
-        var grip = new PixelRect(note.X, note.Y, note.Width, Math.Min(note.Height, GripHeight));
+        topInset = Math.Clamp(topInset, 0, Math.Max(0, note.Height - 1));
+        var grip = new PixelRect(note.X, note.Y + topInset, note.Width, Math.Min(note.Height - topInset, GripHeight));
         foreach (var area in workAreas)
         {
             var hit = grip.Intersect(area);

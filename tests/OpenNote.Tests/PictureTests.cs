@@ -81,6 +81,22 @@ public sealed class PictureTests : IDisposable
         Assert.False(File.Exists(store.FullPath(dropped)));
     }
 
+    [Fact]
+    public void Cleanup_KeepsPicturesTheBackupStillUses_AndSkipsWhenOneCantBeRead()
+    {
+        var store = new ImageStore(_dir);
+        var inBackup = SavePng(store, 4, 4);
+        var unused = SavePng(store, 4, 4);
+        // A backup that can't be read right now: nothing is deleted this time.
+        Assert.Equal(0, store.DeleteUnreferenced([], [null]));
+        Assert.True(File.Exists(store.FullPath(unused)));
+        // The backup mentions one picture (inside escaped JSON text): only the other one goes.
+        var backup = "{\"notes\":[{\"text\":\"old\\r\\n" + ImageStore.Line(inBackup) + "\"}]}";
+        Assert.Equal(1, store.DeleteUnreferenced([], [backup]));
+        Assert.True(File.Exists(store.FullPath(inBackup)));
+        Assert.False(File.Exists(store.FullPath(unused)));
+    }
+
     static InlineUIContainer Picture(ImageStore store, string path) =>
         new(new PictureView { File = store.FullPath(path)! });
 

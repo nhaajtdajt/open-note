@@ -37,6 +37,31 @@ public sealed class NoteStore(string directory)
     public bool LoadedCleanly { get; private set; }
 
     /// <summary>
+    /// The raw text of notes.json.bak and of damaged notes files set aside (notes.corrupt-*), so the
+    /// pictures they mention aren't cleaned up while someone may still go back to them. Null for
+    /// one that can't be read right now (then nothing is cleaned up this time).
+    /// </summary>
+    public IEnumerable<string?> OtherNoteFiles()
+    {
+        var files = System.IO.Directory.Exists(Directory)
+            ? System.IO.Directory.EnumerateFiles(Directory, "notes.corrupt-*").Prepend(BackupPath)
+            : [];
+        foreach (var file in files)
+        {
+            string? text;
+            try
+            {
+                text = File.Exists(file) ? File.ReadAllText(file) : "";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                text = null;
+            }
+            yield return text;
+        }
+    }
+
+    /// <summary>
     /// Loads the notes. A damaged file is set aside and the backup used instead; a file that is
     /// only locked (antivirus, sync tools) is retried, and still failing throws an IOException
     /// rather than being mistaken for damage.
@@ -74,10 +99,10 @@ public sealed class NoteStore(string directory)
     public void Save(StoreData data)
     {
         System.IO.Directory.CreateDirectory(Directory);
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(data, JsonOptions);
+        // Straight into the file: no copy of the whole JSON in memory on every save.
         using (var fs = new FileStream(TempPath, FileMode.Create, FileAccess.Write, FileShare.None))
         {
-            fs.Write(bytes);
+            JsonSerializer.Serialize(fs, data, JsonOptions);
             fs.Flush(flushToDisk: true);
         }
 

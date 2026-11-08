@@ -28,6 +28,20 @@ public class InlineMarkupTests
     }
 
     [Fact]
+    public void ManyUnclosedColorTags_ParseQuicklyAsPlainText()
+    {
+        // 100,000 "{red}" with no "{/}" (a crafted note file) used to take billions of steps.
+        var text = string.Concat(Enumerable.Repeat("{red}", 100_000));
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var spans = InlineMarkup.Parse(text);
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(2), $"took {watch.Elapsed}");
+        Assert.Equal(text, string.Concat(spans.Select(s => s.Text)));
+        Assert.All(spans, s => Assert.Null(s.Color));
+        // A closed tag later on still colors as before.
+        Assert.Equal([P("a "), new StyledSpan("b", false, false, "red")], InlineMarkup.Parse("a {red}b{/}"));
+    }
+
+    [Fact]
     public void Write_RoundTripsThroughParse()
     {
         StyledSpan[] spans = [P("Ghi "), B("chú"), P(" có "), I("nghiêng"), P(" và "), BI("cả hai"), P(" 2*3")];
@@ -62,6 +76,40 @@ public class InlineMarkupTests
     public void Write_MergesNeighbours_AndKeepsSpacesOutsideMarkers()
     {
         Assert.Equal("say **hello world** now", InlineMarkup.Write([P("say"), B(" hello"), B(" world "), P("now")]));
+    }
+
+    [Fact]
+    public void TextColor_IsStoredAsTags_AroundBoldAndItalic()
+    {
+        StyledSpan[] spans = [P("a "), new("red", false, false, "red"), new(" bold", true, false, "red"), P(" "), new("blue", false, true, "blue")];
+        var text = InlineMarkup.Write(spans);
+        Assert.Equal("a {red}red **bold**{/} {blue}*blue*{/}", text);
+        // The space before "bold" moves outside the bold markers but stays red.
+        StyledSpan[] read = [P("a "), new("red ", false, false, "red"), new("bold", true, false, "red"), P(" "), new("blue", false, true, "blue")];
+        Assert.Equal(read, InlineMarkup.Parse(text));
+        Assert.Equal("a red bold blue", InlineMarkup.Strip(text));
+    }
+
+    [Theory]
+    [InlineData("a {red} b")]                 // no closing tag: plain text
+    [InlineData("set {x} and {/} and {pink}y{/}")] // not a color tag
+    [InlineData(@"C:\path\{x} and \{ }")]
+    public void TextColor_UnclosedOrUnknownTags_StayText(string text) =>
+        Assert.Equal(text, InlineMarkup.Strip(text));
+
+    [Fact]
+    public void TextColor_LiteralTagsAndBackslashes_RoundTrip()
+    {
+        StyledSpan[][] cases =
+        [
+            [P("type {red}x{/} to color")],
+            [P("dir\\"), new("x", false, false, "green")],
+            [new("end\\", false, false, "red"), P("after")],
+            [new("{/} inside", false, false, "purple")],
+            [P(@"old \{ brace \\{red}")],
+        ];
+        foreach (var spans in cases)
+            Assert.Equal(spans, InlineMarkup.Parse(InlineMarkup.Write(spans)));
     }
 
     [Fact]

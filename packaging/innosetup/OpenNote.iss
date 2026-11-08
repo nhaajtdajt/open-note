@@ -39,6 +39,10 @@ Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 CloseApplications=no
+; The program folder goes on the user's PATH so "opennote-ai" (the command AI agents use) works in any terminal.
+ChangesEnvironment=yes
+; .onote files (a note saved with "Save as file…") open in Open Note with a double-click.
+ChangesAssociations=yes
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -52,6 +56,13 @@ Name: "{userprograms}\Open Note"; Filename: "{app}\OpenNote.exe"
 
 ; "Start with Windows" is turned on by the app itself on its first run (and stays off once the
 ; user turns it off in the tray menu), so an update never overrides that choice.
+
+[Registry]
+Root: HKCU; Subkey: "Software\Classes\.onote"; ValueType: string; ValueName: ""; ValueData: "OpenNote.Note"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\OpenNote.Note"; ValueType: string; ValueName: ""; ValueData: "Open Note note"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\OpenNote.Note\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\OpenNote.exe,0"
+Root: HKCU; Subkey: "Software\Classes\OpenNote.Note\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\OpenNote.exe"" ""%1"""
+Root: HKCU; Subkey: "Environment"; ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; Check: NeedsPath(ExpandConstant('{app}'))
 
 [Run]
 Filename: "{app}\OpenNote.exe"; Description: "Start Open Note"; Flags: nowait postinstall
@@ -78,9 +89,40 @@ begin
   Result := True;
 end;
 
-// Remove the "Start with Windows" entry the app created. Notes in %LOCALAPPDATA%\OpenNote are kept.
+// True when the folder isn't on the user's PATH yet (so an update doesn't add it twice).
+function NeedsPath(Folder: String): Boolean;
+var
+  Path: String;
+begin
+  if not RegQueryStringValue(HKCU, 'Environment', 'Path', Path) then
+    Result := True
+  else
+    Result := Pos(';' + Uppercase(Folder) + ';', ';' + Uppercase(Path) + ';') = 0;
+end;
+
+// Takes the program folder off the user's PATH again.
+procedure RemoveFromPath(Folder: String);
+var
+  Path: String;
+  P: Integer;
+begin
+  if not RegQueryStringValue(HKCU, 'Environment', 'Path', Path) then
+    exit;
+  Path := ';' + Path + ';';
+  P := Pos(';' + Uppercase(Folder) + ';', Uppercase(Path));
+  if P = 0 then
+    exit;
+  Delete(Path, P, Length(Folder) + 1);
+  Path := Copy(Path, 2, Length(Path) - 2);
+  RegWriteExpandStringValue(HKCU, 'Environment', 'Path', Path);
+end;
+
+// Remove the "Start with Windows" entry the app created and the PATH entry. Notes in %LOCALAPPDATA%\OpenNote are kept.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then
+  begin
     RegDeleteValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Run', 'OpenNote');
+    RemoveFromPath(ExpandConstant('{app}'));
+  end;
 end;

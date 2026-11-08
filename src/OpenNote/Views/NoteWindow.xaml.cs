@@ -9,6 +9,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using OpenNote.Core;
 using OpenNote.Native;
@@ -33,6 +34,9 @@ internal partial class NoteWindow : Window
     bool _placed, _closingByManager;
     double _shadowScale = 1;
 
+    /// <summary>For a note that opens in the middle of the main screen at this size (in DIPs) instead of at the mouse.</summary>
+    public Size? CenteredSize { get; init; }
+
     public NoteWindow(NoteManager manager, Note note, PixelPoint? spawnAt)
     {
         InitializeComponent();
@@ -40,9 +44,7 @@ internal partial class NoteWindow : Window
         _spawnAt = spawnAt;
         Note = note;
 
-        RichText.Load(Editor.Document, note.Text, CreatePicture);
-        Editor.IsUndoEnabled = false; // start with an empty undo history, so Ctrl+Z can't "undo" loading the note
-        Editor.IsUndoEnabled = true;
+        LoadText();
         Editor.CaretPosition = Editor.Document.ContentStart; // open at the top of the note
         ApplyLanguages();
         ApplyTopmost();
@@ -116,11 +118,22 @@ internal partial class NoteWindow : Window
         var areas = Displays.WorkAreas();
         if (Note.Width > 0 && Note.Height > 0)
         {
-            var target = ScreenMath.EnsureVisible(new PixelRect(Note.X, Note.Y, Note.Width, Note.Height), areas);
+            var target = ScreenMath.EnsureVisible(new PixelRect(Note.X, Note.Y, Note.Width, Note.Height), areas, topInset: ShadowInset);
             Win32.SetBounds(_hwnd, target);
             // If the note lives on a monitor with different scaling, WPF rescales it on the
             // first move; setting the bounds again restores the exact saved pixel size.
             Win32.SetBounds(_hwnd, target);
+            return;
+        }
+
+        if (CenteredSize is { } size)
+        {
+            double scale = VisualTreeHelper.GetDpi(this).DpiScaleX;
+            var main = areas[0]; // the main screen comes first
+            int w = (int)(size.Width * scale), h = (int)(size.Height * scale);
+            var middle = ScreenMath.ClampInto(new PixelRect(main.X + (main.Width - w) / 2, main.Y + (main.Height - h) / 2, w, h), main);
+            Win32.SetBounds(_hwnd, middle);
+            Win32.SetBounds(_hwnd, middle); // again, in case the main screen's scaling differs (see above)
             return;
         }
 
@@ -155,7 +168,7 @@ internal partial class NoteWindow : Window
             Show();
 
         var areas = Displays.WorkAreas();
-        if (Win32.GetBounds(_hwnd) is { } r && ScreenMath.EnsureVisible(r, areas) is var fixedRect && fixedRect != r)
+        if (Win32.GetBounds(_hwnd) is { } r && ScreenMath.EnsureVisible(r, areas, topInset: ShadowInset) is var fixedRect && fixedRect != r)
             Win32.SetBounds(_hwnd, fixedRect);
 
         if (!Topmost)
@@ -207,8 +220,8 @@ internal partial class NoteWindow : Window
     }
 
     /// <summary>
-    /// Paste keeps bold and italic (from other notes, Word, WordPad...) but drops every other
-    /// kind of formatting, so pasted text always matches the note.
+    /// Paste keeps bold and italic (from other notes, Word, WordPad...) and text colors from other
+    /// notes, but drops every other kind of formatting, so pasted text always matches the note.
     /// </summary>
     void Editor_Pasting(object sender, DataObjectPastingEventArgs e)
     {
@@ -256,8 +269,10 @@ internal partial class NoteWindow : Window
                 var range = new TextRange(position, position) { Text = span.Text };
                 range.ApplyPropertyValue(TextElement.FontWeightProperty, span.Bold ? FontWeights.Bold : FontWeights.Normal);
                 range.ApplyPropertyValue(TextElement.FontStyleProperty, span.Italic ? FontStyles.Italic : FontStyles.Normal);
+                range.ApplyPropertyValue(TextElement.ForegroundProperty, TextColorBrush(span.Color));
                 position = range.End;
             }
+            RichText.FixTextColors(Editor.Document, Palette.IsDark(Note.Color));
             Editor.Selection.Select(position, position);
         }
         finally
@@ -266,12 +281,47 @@ internal partial class NoteWindow : Window
         }
     }
 
+    // ---------- Text color ----------
+
+    string _lastTextColor = Palette.TextColors[0].Tag; // what Ctrl+H puts on
+
+    /// <summary>The brush for a text color; null gives the note's ink (FixTextColors then clears it off the text).</summary>
+    Brush TextColorBrush(string? tag) => tag is null ? Editor.Document.Foreground : RichText.TextBrush(tag, Palette.IsDark(Note.Color));
+
+    /// <summary>Colors the selection (or what is typed next) with a text color, or takes the color off (null).</summary>
+    void SetTextColor(string? tag)
+    {
+        if (Note.IsLocked)
+            return;
+        if (tag is not null)
+            _lastTextColor = tag;
+        Editor.BeginChange();
+        try
+        {
+            Editor.Selection.ApplyPropertyValue(TextElement.ForegroundProperty, TextColorBrush(tag));
+            RichText.FixTextColors(Editor.Document, Palette.IsDark(Note.Color));
+        }
+        finally
+        {
+            Editor.EndChange();
+        }
+    }
+
+    /// <summary>Ctrl+H: the last text color on, or off again when the selection already has it.</summary>
+    void ToggleTextColor()
+    {
+        var current = Editor.Selection.GetPropertyValue(TextElement.ForegroundProperty) as Brush;
+        SetTextColor(RichText.ColorOf(current) == _lastTextColor ? null : _lastTextColor);
+    }
+
     // ---------- Appearance ----------
 
     /// <summary>
     /// "Liquid glass": a tinted, see-through body with a specular sheen, a bright inner rim and
     /// a dark hairline edge. Opacity controls how much tint the glass carries; text stays solid.
     /// </summary>
+    (byte R, byte G, byte B)? _appliedInk;
+
     void ApplyAppearance()
     {
         double opacity = Math.Clamp(Note.Opacity, MinOpacity, 1);
@@ -292,8 +342,22 @@ internal partial class NoteWindow : Window
         SheenTop.Color = Color.FromArgb((byte)(0x70 * shine), 255, 255, 255);
         RimTop.Color = Color.FromArgb((byte)(0xD9 * shine), 255, 255, 255);
 
-        Foreground = Brush(255, ink);
-        Editor.Document.Foreground = Foreground;
+        if (_appliedInk != ink) // a new brush, even of the same colour, makes the editor lay out and redraw all of its text
+        {
+            _appliedInk = ink;
+            Foreground = Brush(255, ink);
+            Editor.Document.Foreground = Foreground;
+            // Coloured words take this paper's shades as one undo step, not one per word.
+            Editor.BeginChange();
+            try
+            {
+                RichText.FixTextColors(Editor.Document, dark);
+            }
+            finally
+            {
+                Editor.EndChange();
+            }
+        }
         Editor.SelectionBrush = Brush(255, Palette.Mix(strip, dark ? white : black, 0.35));
         TitleEditor.Background = Brush(dark ? (byte)0x30 : (byte)0x70, dark ? black : white);
 
@@ -323,7 +387,7 @@ internal partial class NoteWindow : Window
         Footer.Text = Note.CreatedUtc.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
     }
 
-    /// <summary>The star in the corner: marks the note as important, or takes the mark off.</summary>
+    /// <summary>Ctrl+Shift+S: marks the note as important with its last mark (the star at first), or takes the mark off.</summary>
     void ToggleStar()
     {
         Note.IsImportant = !Note.IsImportant;
@@ -331,7 +395,38 @@ internal partial class NoteWindow : Window
         _manager.NoteEdited(Note);
     }
 
-    bool? _starShown;
+    /// <summary>Marks the note as important with the star (<see cref="NoteMarks.Star"/>) or a flower.</summary>
+    void SetMark(string mark)
+    {
+        Note.Mark = mark;
+        Note.IsImportant = true;
+        UpdateChrome();
+        _manager.NoteEdited(Note);
+    }
+
+    void ClearMark()
+    {
+        Note.IsImportant = false;
+        UpdateChrome();
+        _manager.NoteEdited(Note);
+    }
+
+    static readonly Dictionary<string, BitmapImage> FlowerPictures = [];
+
+    /// <summary>A flower's picture (Assets/marks), loaded once and shared by every note.</summary>
+    internal static BitmapImage FlowerPicture(string id)
+    {
+        if (!FlowerPictures.TryGetValue(id, out var picture))
+        {
+            picture = new BitmapImage(new Uri($"pack://application:,,,/Assets/marks/{id}.png"));
+            picture.Freeze();
+            FlowerPictures[id] = picture;
+        }
+        return picture;
+    }
+
+    /// <summary>What the corner shows: "" when not important, "star", or a flower id.</summary>
+    string? _markShown;
 
     /// <summary>
     /// Not marked, the star is a plain upright outline inside the corner. Marking it lights it up,
@@ -340,12 +435,14 @@ internal partial class NoteWindow : Window
     /// </summary>
     void ApplyStar(bool animate)
     {
-        bool on = Note.IsImportant;
-        if (_starShown == on)
+        var shown = !Note.IsImportant ? "" : NoteMarks.IsFlower(Note.Mark) ? Note.Mark : "star";
+        if (_markShown == shown)
             return;
-        bool first = _starShown is null;
-        _starShown = on;
+        bool first = _markShown is null;
+        _markShown = shown;
         animate = animate && !first && SystemParameters.ClientAreaAnimation;
+        bool on = shown == "star";
+        bool flower = shown.Length > 0 && !on;
 
         var land = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.8 };
         int ms = on ? 340 : 220;
@@ -356,9 +453,18 @@ internal partial class NoteWindow : Window
         StarTo(StarMove, TranslateTransform.XProperty, on ? 0 : 8, ms - 40, EaseOut, animate);
         StarTo(StarMove, TranslateTransform.YProperty, on ? 0 : 10, ms - 40, EaseOut, animate);
         StarTo(StarOn, OpacityProperty, on ? 1 : 0, on ? 160 : 140, EaseOut, animate);
-        StarTo(StarOutline, OpacityProperty, on ? 0 : 0.7, on ? 120 : 200, EaseOut, animate);
+        StarTo(StarOutline, OpacityProperty, shown.Length > 0 ? 0 : 0.7, shown.Length > 0 ? 120 : 200, EaseOut, animate);
 
-        if (on && animate)
+        // A flower appears where the star would land: it grows from small with a little spin and
+        // settles at the star's tilt. Taken off, it shrinks away.
+        if (flower)
+            FlowerImage.Source = FlowerPicture(shown);
+        StarTo(FlowerMark, OpacityProperty, flower ? 1 : 0, flower ? 180 : 140, EaseOut, animate);
+        StarTo(FlowerScale, ScaleTransform.ScaleXProperty, flower ? 1 : 0.4, flower ? 560 : 200, flower ? land : EaseOut, animate, from: flower ? 0.3 : null);
+        StarTo(FlowerScale, ScaleTransform.ScaleYProperty, flower ? 1 : 0.4, flower ? 560 : 200, flower ? land : EaseOut, animate, from: flower ? 0.3 : null);
+        StarTo(FlowerTurn, RotateTransform.AngleProperty, flower ? 12 : 0, flower ? 700 : 200, EaseOut, animate, from: flower ? -200 : null);
+
+        if ((on || flower) && animate)
         {
             // the flash: grows and fades where the star lands
             StarTo(FlashScale, ScaleTransform.ScaleXProperty, 1.1, 460, EaseOut, true, from: 0.5);
@@ -399,7 +505,7 @@ internal partial class NoteWindow : Window
     {
         bool engaged = IsActive || IsMouseOver;
         ApplyStar(animate);
-        StarButton.ToolTip = Note.IsImportant ? Ui.T("Important. Click to remove the star (Ctrl+Shift+S)") : Ui.T("Mark as important (Ctrl+Shift+S)");
+        StarButton.ToolTip = Note.IsImportant ? Ui.T("Important. Click to change or remove the mark (Ctrl+Shift+S)") : Ui.T("Mark as important with a star or a flower (Ctrl+Shift+S)");
         FadeTo(MenuButton, engaged ? 0.75 : 0, animate);
         FadeTo(CloseButton, engaged ? 0.75 : 0, animate);
         bool saved = _manager.IsInSelection(Note);
@@ -433,6 +539,36 @@ internal partial class NoteWindow : Window
         element.BeginAnimation(OpacityProperty, new DoubleAnimation(opacity, Fade));
     }
 
+    /// <summary>Shows the note's text again after it changed outside the editor (an AI agent added lines).</summary>
+    internal void ReloadText()
+    {
+        LoadText();
+        Editor.CaretPosition = Editor.Document.ContentEnd; // where the new lines are
+        Editor.ScrollToEnd();
+        UpdatePlaceholder();
+    }
+
+    /// <summary>
+    /// Fills the editor from the note's text with an empty undo history (Ctrl+Z can't "undo" loading,
+    /// and can't bring pictures back across a reload, see RichText.RemovePictures). Undo is off while
+    /// loading, or WPF would first copy the old content into the history, and the load is one change
+    /// (one TextChanged) rather than one per line.
+    /// </summary>
+    void LoadText()
+    {
+        Editor.IsUndoEnabled = false;
+        Editor.BeginChange();
+        try
+        {
+            RichText.Load(Editor.Document, Note.Text, CreatePicture, Palette.IsDark(Note.Color));
+        }
+        finally
+        {
+            Editor.EndChange();
+        }
+        Editor.IsUndoEnabled = true;
+    }
+
     void UpdatePlaceholder() =>
         Placeholder.Visibility = Note.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
 
@@ -446,7 +582,10 @@ internal partial class NoteWindow : Window
 
     void SetOpacity(double value)
     {
-        Note.Opacity = Math.Round(Math.Clamp(value, MinOpacity, 1), 2);
+        var opacity = Math.Round(Math.Clamp(value, MinOpacity, 1), 2);
+        if (opacity == Note.Opacity)
+            return; // Ctrl+] at 100%, or a slider step that rounds to the same value
+        Note.Opacity = opacity;
         ApplyAppearance();
         UpdateChrome(animate: false);
         _manager.NoteMoved();
@@ -457,13 +596,18 @@ internal partial class NoteWindow : Window
 
     void SetFontSize(double size)
     {
-        Note.FontSize = Math.Clamp(Math.Round(size), MinFont, MaxFont);
+        var fontSize = Math.Clamp(Math.Round(size), MinFont, MaxFont);
+        if (fontSize == Note.FontSize)
+            return;
+        Note.FontSize = fontSize;
         ApplyAppearance();
         _manager.NoteMoved();
     }
 
     void SetFont(NoteFont font)
     {
+        if (Note.Font == font)
+            return;
         Note.Font = font;
         ApplyAppearance();
         _manager.NoteMoved();
@@ -582,6 +726,12 @@ internal partial class NoteWindow : Window
         TitleEditor.SelectAll();
     }
 
+    /// <summary>The transparent margin around the glass (12 DIPs, room for the shadow), in pixels.</summary>
+    int ShadowInset => (int)(12 * VisualTreeHelper.GetDpi(this).DpiScaleY);
+
+    /// <summary>Keeps a title still being typed (before the note is closed or archived).</summary>
+    public void CommitTitleEdit() => EndTitleEdit(commit: true);
+
     void EndTitleEdit(bool commit)
     {
         if (TitleEditor.Visibility != Visibility.Visible)
@@ -655,6 +805,8 @@ internal partial class NoteWindow : Window
     /// <summary>"/-" becomes a bullet and "/>" a checkbox as you type.</summary>
     void Editor_PreviewTextInput(object sender, TextCompositionEventArgs e)
     {
+        if (e.Text.Length == 0 || !QuickInsert.Shortcuts.ContainsKey(e.Text[0]))
+            return;
         if (Note.IsLocked || !Editor.Selection.IsEmpty || CaretParagraph is not { } p)
             return;
         var edit = QuickInsert.TryExpand(RichText.PlainText(p), RichText.CharOffset(p, Editor.CaretPosition), e.Text);
@@ -736,8 +888,11 @@ internal partial class NoteWindow : Window
 
     void Editor_PreviewMouseMove(object sender, MouseEventArgs e)
     {
-        bool overPicture = PictureUnderMouse(e) is not null;
-        Editor.Cursor = overPicture || (!Note.IsLocked && BoxUnderMouse(e) is not null) ? Cursors.Hand : null;
+        // Cheap looks at the saved text first: most notes have no pictures, many have no boxes.
+        var text = Note.Text;
+        bool overPicture = text.Contains("![image](", StringComparison.Ordinal) && PictureUnderMouse(e) is not null;
+        bool overBox = !Note.IsLocked && text.AsSpan().IndexOfAny(Checklist.Open, Checklist.Done) >= 0 && BoxUnderMouse(e) is not null;
+        Editor.Cursor = overPicture || overBox ? Cursors.Hand : null;
         Editor.ToolTip = overPicture ? Ui.T("Click to select, double-click to open") : null;
     }
 
@@ -802,6 +957,7 @@ internal partial class NoteWindow : Window
             case Key.G: StartAiCheck(); break;
             case Key.R: ReadAloud(); break;
             case Key.Enter: ToggleChecklistLine(); break;
+            case Key.H: ToggleTextColor(); break;
             case Key.OemOpenBrackets: SetOpacity(Note.Opacity - 0.1); break;
             case Key.OemCloseBrackets: SetOpacity(Note.Opacity + 0.1); break;
             case Key.OemPlus or Key.Add: ChangeFontSize(1); break;

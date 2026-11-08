@@ -36,7 +36,7 @@ Build Open Note for macOS so that it **behaves exactly like the Windows app in `
 
 ### Keep the two apps in step
 
-- The Mac app's version is the Windows version it matches (now **1.1.0**, from `<Version>` in `src/OpenNote/OpenNote.csproj`).
+- The Mac app's version is the Windows version it matches (now **2.0.0**, from `<Version>` in `src/OpenNote/OpenNote.csproj`).
 - When `main` gets Windows changes in `src/OpenNote/`, port exactly those changes in a follow-up pull request. `git log --oneline -- src/OpenNote` shows what changed since the version you match.
 
 ### Git workflow

@@ -6,11 +6,13 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <!-- Program.Main: the opennote-ai command runs without starting WPF. -->
+    <StartupObject>OpenNote.Program</StartupObject>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AssemblyTitle>Open Note</AssemblyTitle>
     <Product>Open Note</Product>
-    <Version>1.1.0</Version>
+    <Version>2.0.0</Version>
 
     <!-- Memory: a mostly idle tray app. No background GC thread, and a GC that prefers
          compacting over growing the heap. -->
@@ -33,11 +35,44 @@
 
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
-    <Resource Include="Assets\help-card.png" />
+    <Resource Include="Assets\help\*.png" />
+    <Resource Include="Assets\help\*.jpg" />
+    <Resource Include="Assets\marks\*.png" />
   </ItemGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="OpenNote.Tests" />
   </ItemGroup>
+
+  <!-- opennote-ai.exe, the command AI agents run (see Core/AgentCommands.cs): a copy of the
+       OpenNote.exe launcher marked as a console program, so a terminal waits for it and gets its
+       output. It starts the same OpenNote.dll, so it adds ~150 KB and no code. A separate name is
+       needed because Windows file names ignore case: "opennote.exe" would be OpenNote.exe itself. -->
+  <UsingTask TaskName="MakeConsoleCopy" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Source ParameterType="System.String" Required="true" />
+      <Destination ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        var bytes = System.IO.File.ReadAllBytes(Source);
+        int pe = System.BitConverter.ToInt32(bytes, 0x3C);
+        if (bytes[pe] != 'P' || bytes[pe + 1] != 'E' || bytes[pe + 2] != 0 || bytes[pe + 3] != 0)
+        {
+            Log.LogError("Not a Windows program: " + Source);
+            return false;
+        }
+        bytes[pe + 0x5C] = 3; // IMAGE_OPTIONAL_HEADER.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_CUI (was 2, GUI)
+        bytes[pe + 0x5D] = 0;
+        System.IO.File.WriteAllBytes(Destination, bytes);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+  <Target Name="AgentCommandAfterBuild" AfterTargets="Build" Inputs="$(TargetDir)$(AssemblyName).exe" Outputs="$(TargetDir)opennote-ai.exe">
+    <MakeConsoleCopy Source="$(TargetDir)$(AssemblyName).exe" Destination="$(TargetDir)opennote-ai.exe" />
+  </Target>
+  <Target Name="AgentCommandAfterPublish" AfterTargets="Publish">
+    <MakeConsoleCopy Source="$(PublishDir)$(AssemblyName).exe" Destination="$(PublishDir)opennote-ai.exe" />
+  </Target>
 
 </Project>

@@ -19,6 +19,10 @@ public sealed partial class ImageStore(string dataDirectory)
     [GeneratedRegex(@"^!\[image\]\((?<path>[^)\r\n]+)\)$")]
     private static partial Regex ImageLinePattern();
 
+    // A picture's file name anywhere in a raw file (a backup or a damaged notes.json, read as text).
+    [GeneratedRegex(@"images/(?<name>[0-9a-f]{32}\.(png|jpg))")]
+    private static partial Regex PictureNameInFile();
+
     public string Folder => Path.Combine(dataDirectory, FolderName);
 
     /// <summary>The line stored in a note for a picture.</summary>
@@ -27,6 +31,10 @@ public sealed partial class ImageStore(string dataDirectory)
     /// <summary>True when the whole line is a picture written by <see cref="Line"/>.</summary>
     public static bool IsImageLine(string line, out string relativePath)
     {
+        relativePath = "";
+        // Almost no line is a picture: skip the copy and the regex unless it starts like one.
+        if (!line.AsSpan().TrimStart().StartsWith("![image](", StringComparison.Ordinal))
+            return false;
         var match = ImageLinePattern().Match(line.Trim());
         relativePath = match.Success ? match.Groups["path"].Value : "";
         return match.Success && SafePath().IsMatch(relativePath);
@@ -53,7 +61,11 @@ public sealed partial class ImageStore(string dataDirectory)
             throw new ArgumentException("Only png and jpg are stored.", nameof(extension));
         Directory.CreateDirectory(Folder);
         var relative = $"{FolderName}/{Guid.NewGuid():N}.{extension}";
-        File.WriteAllBytes(FullPath(relative)!, encoded);
+        using (var fs = new FileStream(FullPath(relative)!, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+        {
+            fs.Write(encoded);
+            fs.Flush(flushToDisk: true); // on disk before notes.json points at it
+        }
         return relative;
     }
 
@@ -61,11 +73,20 @@ public sealed partial class ImageStore(string dataDirectory)
     /// Deletes pictures no note refers to any more (removed from a note, or the note was deleted).
     /// Run at startup only, after the notes loaded cleanly, never while notes are being edited.
     /// </summary>
-    public int DeleteUnreferenced(IEnumerable<string> noteTexts)
+    /// <param name="otherFiles">Raw text of notes.json.bak and set-aside damaged notes files: pictures they mention
+    /// are kept too, so going back to one of them doesn't lose its pictures.</param>
+    public int DeleteUnreferenced(IEnumerable<string> noteTexts, IEnumerable<string?>? otherFiles = null)
     {
         if (!Directory.Exists(Folder))
             return 0;
         var used = new HashSet<string>(noteTexts.SelectMany(Referenced).Select(p => Path.GetFileName(p)), StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in otherFiles ?? [])
+        {
+            if (raw is null)
+                return 0; // one of them can't be read now: keep everything, try again next start
+            foreach (Match m in PictureNameInFile().Matches(raw))
+                used.Add(m.Groups["name"].Value);
+        }
         int deleted = 0;
         foreach (var file in Directory.EnumerateFiles(Folder))
         {

@@ -8,6 +8,8 @@
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap desktop rescap">
 
@@ -30,7 +32,8 @@
   </Resources>
 
   <Applications>
-    <Application Id="OpenNote" Executable="OpenNote.exe" EntryPoint="Windows.FullTrustApplication">
+    <!-- SupportsMultipleInstances: required by the console alias below; the app keeps itself to one copy (a mutex). -->
+    <Application Id="OpenNote" Executable="OpenNote.exe" EntryPoint="Windows.FullTrustApplication" desktop4:SupportsMultipleInstances="true">
       <uap:VisualElements
         DisplayName="Open Note"
         Description="Lightweight sticky notes for the Windows desktop."
@@ -44,6 +47,22 @@
         <desktop:Extension Category="windows.startupTask" Executable="OpenNote.exe" EntryPoint="Windows.FullTrustApplication">
           <desktop:StartupTask TaskId="OpenNoteStartup" Enabled="true" DisplayName="Open Note" />
         </desktop:Extension>
+        <!-- "opennote-ai" in any terminal: the command AI agents use to read and add notes (a console program). -->
+        <uap5:Extension Category="windows.appExecutionAlias" Executable="opennote-ai.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:AppExecutionAlias desktop4:Subsystem="console">
+            <uap5:ExecutionAlias Alias="opennote-ai.exe" />
+          </uap5:AppExecutionAlias>
+        </uap5:Extension>
+        <!-- .onote files (a note saved with "Save as file…"): a double-click opens them as a note (the path comes as an argument). -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="onote">
+            <uap:DisplayName>Open Note note</uap:DisplayName>
+            <uap:Logo>Images\Square44x44Logo.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.onote</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
       </Extensions>
     </Application>
   </Applications>

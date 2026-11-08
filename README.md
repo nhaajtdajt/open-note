@@ -47,6 +47,7 @@ On the free tier Google may use the text you check to improve its products, so d
 | In a note | `/-` | Bullet `•` (type a slash, then a dash) |
 | In a note | `/>` | Checkbox `☐`. Type `//-` or `//>` to keep the characters as typed. |
 | In a note | `Ctrl+B` / `Ctrl+I` | **Bold** / *italic* |
+| In a note | `Ctrl+H`, or right-click → **Text color** | Color the selected text red, orange, green, blue or purple (the menu picks the color; `Ctrl+H` puts on the last one picked, or takes it off again). **No color** goes back to the note's own ink. |
 | In a note | `Ctrl+G`, or right-click → **Check with AI** | Send the selected text (or the current line) to Gemini, with the note's title and up to 30 words written before it so the answer fits the topic (that context is only read, never changed). You get two versions: one as close to your wording as possible, and one that reads more naturally. Pick one to replace the text. |
 | In a note | `Ctrl+R`, or right-click → **Read aloud** | Read the selected text (or the current line) aloud with the offline Windows voices. Press again to stop. |
 | In a note | `Ctrl+N` | New note next to this one |
@@ -60,6 +61,7 @@ On the free tier Google may use the text you check to improve its products, so d
 | In a note | `Ctrl+wheel`, `Ctrl+=` / `Ctrl+-` / `Ctrl+0`, or the **Text size** slider in the note's ⋯ menu | Text size |
 
 - **Move a note:** drag its header.
+- **Mark a note as important:** click the star in its top-left corner and pick the star or one of six flowers (pink, yellow, blue, red, a daisy or a four-leaf clover). The star flies out to the corner; a flower appears there with a little spin. Click it again to change the mark or take it off (✕); `Ctrl+Shift+S` puts the last mark back on or takes it off. Important notes come first in the notes list.
 - **Rename a note:** click the header without dragging (it starts after a moment, in case you meant to double-click).
 - **Shrink and restore a note:** double-click the header. A note you made bigger shrinks to the normal size and remembers how big it was; double-click again to get that size back. If you resize it by hand while it is shrunk, the new size becomes the one remembered. Every note's size and position are saved and restored on restart.
 - **Resize a note:** drag any edge.
@@ -69,6 +71,8 @@ On the free tier Google may use the text you check to improve its products, so d
   - **Shake:** shake a note hard from side to side and it fades a little more with every shake, then disappears for a moment and comes back where you hold it. It is only a visual effect: the note and its text are not touched. If you stop shaking early, it comes back by itself.
   - Turn all of this off with tray → **Note effects** (or `"noteEffects": false` in `settings.json`). It is also off while Windows' *Show animations* setting is off.
 - **More options:** right-click the header or use the `⋯` button for color, glass tint, font (Mono/Consolas, Sans, Handwriting), lock and more.
+- **Save a note as a file:** `⋯` → **Save as file…** makes a copy (the note stays). Pick **Text only** (`.txt`) for just the words, or an **Open Note note** (`.onote`): one file with the text, formatting, colors, font, mark and pictures. Double-click an `.onote` file, or use the tray menu → **Open a note file…**, and it opens as a new note, on this PC or another one with Open Note.
+- **After an update:** a note in the middle of the screen says what's new, once. Delete it and it doesn't come back.
 - **Tray icon:** a left click brings all notes to the front. The right-click menu has the rest.
 - **Pictures:** paste with `Ctrl+V` (a Win+Shift+S screenshot, an image copied from a browser, or image files copied in Explorer), or drag image files onto a note.
   - **Sizing:** a picture fills the note's width and keeps its shape, but never grows past its own pixel size, so it is never blown up into blur.
@@ -108,6 +112,19 @@ On the free tier Google may use the text you check to improve its products, so d
 - **Models:** `"openCodeModels"` and `"geminiModels"` list the models to try in order. When one is overloaded or its answer can't be read, the next is used.
 - **Privacy:** nothing is sent unless you ask. Only the selected text (or current line), plus the note's title and up to 30 words before it as context, goes to the AI service, and keys travel in a request header, not in the URL.
 - **Formatting:** the replaced text comes back plain, so bold or italic inside that selection is not kept.
+
+## AI agents: let your AI read and write notes
+
+AI agents that can run commands on your PC (Claude Code, Codex, Cursor, Gemini CLI, the Code tab of Claude Desktop…) can read your notes and create new ones, with nothing to set up. Start your request with:
+
+> My PC runs Open Note, a sticky notes app. Run the command `opennote-ai` to see how to use it, then: *find my note about the "abc" task and tell me what to do first.*
+
+`opennote-ai` prints a short guide for the AI: the commands, how note text works, and your note style. The AI then uses commands such as `opennote-ai search abc`, `opennote-ai read <id>`, `opennote-ai new --title "…" --text "…" --image chart.png` and `opennote-ai add <id> --text "…"`. A note it creates appears on your screen right away, without taking your keyboard. Both suggested sentences are on the how-to card (`Ctrl+Alt+/` → **AI agents**), ready to copy.
+
+- **Read, create, add. Nothing else.** There is no command to delete or rewrite a note, and locked notes can't be added to. Chat-only AIs in a browser can't reach your PC, so this needs an agent that runs commands; the agent asks you before running one.
+- **Your note style:** on the same page, describe how you like notes written (for example "every item gets a short explanation after —"). Leave it empty and AI agents follow Open Note's default: a short title, one topic per note, at most about 8 lines, tasks as ☐ lines that start with a verb. You can also ask the AI to learn it: *"…run `opennote-ai`, read all my notes, then save a short description of how I write notes with `opennote-ai style --set`."*
+- **Turning it off:** untick **Let AI agents read and add notes** on that page (`"allowAgents": false` in `settings.json`). It is on by default.
+- **How it works:** `opennote-ai.exe` sits next to `OpenNote.exe` (the installer puts the folder on your PATH; the Store version registers the command). It hands each command to the running Open Note over a pipe only your Windows account can open, starting Open Note if needed, so what the AI writes is saved like your own typing. If Vietnamese or other letters look wrong in Windows PowerShell 5.1, run `[Console]::OutputEncoding = [Text.UTF8Encoding]::new()` first.
 
 ## How it behaves on Windows (and why)
 
@@ -161,11 +178,12 @@ src/OpenNote/
   Core/        UI-free logic: Note model, NoteStore (JSON + safe writes), settings,
                ScreenMath (keep notes on screen), Checklist, QuickInsert, InlineMarkup
                (bold/italic markers), AiCorrector (AI check, key rotation), GeminiKeyChecker,
-               LanguageHint, HotkeyGesture, NoteSearch, Palette
+               LanguageHint, HotkeyGesture, NoteSearch, Palette, AgentCommands (opennote-ai)
   Native/      Win32 interop: tool-window style, z-order, bounds, hotkeys, monitor work areas,
                tray icon (Shell_NotifyIcon), memory trimming, MSIX package detection
   Services/    NoteManager (single owner of notes and windows, debounced saving),
-               HotkeyService, TrayService, StartupRegistration, SpeechService
+               HotkeyService, TrayService, StartupRegistration, SpeechService,
+               AgentServer (the running app's end of the opennote-ai command)
   Views/       NoteWindow (one note; split into .Pictures, .Ai, .Menus, .Size and .Speech parts),
                RichText (editor <-> stored text), AiPanel (AI suggestions), ApiKeysWindow,
                NotesListWindow (search/manage/archive), PickNotesWindow

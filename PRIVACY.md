@@ -1,6 +1,6 @@
 # Open Note privacy policy
 
-_Last updated: 26 October 2026_
+_Last updated: 7 November 2026_
 
 Open Note is a sticky-notes app for Windows. It is built so that your notes stay on your PC.
 
@@ -30,6 +30,10 @@ Open Note only connects to the internet when you ask it to:
 3. **Opening a web page** you clicked on (for example Google AI Studio to create a key) opens it in your browser.
 
 Keys are sent in a request header over HTTPS, never in a web address.
+
+### AI agents on your PC
+
+Open Note itself sends nothing for this. If you use an AI agent that runs commands on your PC (Claude Code, Codex, Cursor…), it can read your notes and add new ones with the `opennote-ai` command, which only works on your PC and for your Windows account. What the agent reads may then be sent to that agent's AI service under **its** terms. Turn this off on the how-to card (`Ctrl+Alt+/` → AI agents) if you don't want agents to read your notes.
 
 ### The AI service's own terms
 

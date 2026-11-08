@@ -56,6 +56,9 @@ public class TranslationTests
         var known = Translations.English.ToHashSet();
         Assert.All(Language.All, l => Assert.Contains(l.EnglishName, known));
         Assert.All(Palette.Colors, c => Assert.Contains(c.Name, known));
+        Assert.All(Palette.TextColors, c => Assert.Contains(c.Name, known));
+        Assert.All(NoteMarks.Flowers, f => Assert.Contains(f.Name, known));
+        Assert.Contains(AgentCommands.DefaultStyle, known);
     }
 
     [Fact]
@@ -63,6 +66,7 @@ public class TranslationTests
     {
         static string Blanks(string s) => string.Join(",", Regex.Matches(s, @"\{\d+\}").Select(m => m.Value).Distinct().OrderBy(x => x));
         int rows = Translations.English.Distinct().Count();
+        Assert.Equal(Translations.English.Count(), rows); // a phrase listed twice would silently keep one translation
         Assert.Equal(6, Translations.Table.Count);
         foreach (var (code, column) in Translations.Table)
         {

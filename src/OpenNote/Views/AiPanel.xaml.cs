@@ -20,6 +20,7 @@ internal partial class AiPanel : UserControl
         CloseButton.ToolTip = _t.Close;
         RetryButton.Content = _t.TryAgain;
         CloseButton.Click += (_, _) => CloseRequested?.Invoke();
+        Unloaded += (_, _) => Spinner.IsIndeterminate = false; // closed while still asking
         RetryButton.Click += (_, _) => RetryRequested?.Invoke();
         UseMinimalButton.Click += (_, _) => Chosen?.Invoke(MinimalText.Text);
         UseNaturalButton.Click += (_, _) => Chosen?.Invoke(NaturalText.Text);
@@ -96,5 +97,6 @@ internal partial class AiPanel : UserControl
     {
         foreach (var v in new FrameworkElement[] { LoadingView, ResultView, ErrorView })
             v.Visibility = v == view ? Visibility.Visible : Visibility.Collapsed;
+        Spinner.IsIndeterminate = view == LoadingView; // a collapsed indeterminate bar keeps animating
     }
 }

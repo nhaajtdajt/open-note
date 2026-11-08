@@ -32,7 +32,7 @@ internal partial class NoteWindow
             if (files.Count > 0)
             {
                 foreach (var file in files)
-                    saved.Add(SavePictureFile(file));
+                    saved.Add(SavePictureFile(_manager.Images, file));
             }
             else if (data.GetData(DataFormats.UnicodeText) is string text && text.Trim().Length > 0)
                 return false;
@@ -69,15 +69,16 @@ internal partial class NoteWindow
     }
 
     /// <summary>JPEG photos are kept as they are; anything else is stored as PNG.</summary>
-    string SavePictureFile(string file)
+    /// <remarks>Also used for pictures an AI agent adds (see AgentServer).</remarks>
+    internal static string SavePictureFile(ImageStore images, string file)
     {
         var ext = Path.GetExtension(file).ToLowerInvariant();
         if (ext is ".jpg" or ".jpeg")
-            return _manager.Images.Save(File.ReadAllBytes(file), "jpg");
+            return images.Save(File.ReadAllBytes(file), "jpg");
         if (ext == ".png")
-            return _manager.Images.Save(File.ReadAllBytes(file), "png");
+            return images.Save(File.ReadAllBytes(file), "png");
         var decoder = BitmapDecoder.Create(new Uri(file), BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
-        return _manager.Images.Save(EncodePng(decoder.Frames[0]), "png");
+        return images.Save(EncodePng(decoder.Frames[0]), "png");
     }
 
     static byte[] EncodePng(BitmapSource bitmap)
@@ -209,16 +210,23 @@ internal partial class NoteWindow
     }
 
     /// <summary>Highlights pictures that are part of the selection (the text highlight doesn't cover them well).</summary>
+    bool _picturesHighlighted;
+
     void UpdatePictureSelection()
     {
         var selection = Editor.Selection;
+        if (selection.IsEmpty && !_picturesHighlighted)
+            return; // typing and moving the caret: nothing to mark, nothing to clear
+        bool any = false;
         foreach (var container in RichText.Pictures(Editor.Document))
         {
             if (container.Child is not PictureView picture)
                 continue;
             picture.IsSelected = !selection.IsEmpty
                 && selection.Start.CompareTo(container.ElementEnd) < 0 && selection.End.CompareTo(container.ElementStart) > 0;
+            any |= picture.IsSelected;
         }
+        _picturesHighlighted = any;
     }
 
     /// <summary>

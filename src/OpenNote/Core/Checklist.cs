@@ -53,12 +53,14 @@ public static class Checklist
     /// </summary>
     public static IEnumerable<(int Start, int End, bool Done)> Items(string text)
     {
-        for (int start = 0; start <= text.Length; start = LineEnd(text, start) + 1)
+        for (int start = 0; ; )
         {
+            int end = LineEnd(text, start);
             if (HasMarker(text, start, out var marker) && marker != Bullet)
-                yield return (start + PrefixLength, LineEnd(text, start), marker == Done);
-            if (LineEnd(text, start) >= text.Length)
+                yield return (start + PrefixLength, end, marker == Done);
+            if (end >= text.Length)
                 yield break;
+            start = end + 1;
         }
     }
 
@@ -79,7 +81,7 @@ public static class Checklist
 
     static int LineEnd(string text, int lineStart)
     {
-        int i = text.IndexOfAny(['\r', '\n'], lineStart);
-        return i < 0 ? text.Length : i;
+        int i = text.AsSpan(lineStart).IndexOfAny('\r', '\n');
+        return i < 0 ? text.Length : lineStart + i;
     }
 }

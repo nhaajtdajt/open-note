@@ -111,6 +111,7 @@ public sealed class PictureView : FrameworkElement
     }
 
     /// <summary>Marks the picture as part of the selection (a blue frame).</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)] // never copied along with the picture
     public bool IsSelected
     {
         get => _selected;

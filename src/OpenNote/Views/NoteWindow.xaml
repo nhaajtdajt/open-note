@@ -145,9 +145,10 @@
             </Border.BorderBrush>
         </Border>
 
-        <!-- 5. The star. Not marked: a plain upright outline star inside the corner, always visible. Marked: it
-                lights up, tilts and flies to the corner as a solid navy star with a white halo that overlaps the
-                note's edge, so you can see at a glance which notes matter. The button sits where the marked star ends up. -->
+        <!-- 5. The star. Not marked: a plain upright outline star inside the corner, always visible. Clicking it
+                offers the star or one of the flowers. The star lights up, tilts and flies to the corner as a solid
+                navy star with a white halo that overlaps the note's edge; a flower appears there with a little
+                spin. Either way you can see at a glance which notes matter. The button sits where the mark ends up. -->
         <Button x:Name="StarButton" Width="38" Height="38" Margin="-12,-12,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
                 Focusable="False" Cursor="Arrow" Click="StarButton_Click">
             <Button.Template>
@@ -200,6 +201,19 @@
                         <Path Data="M 10,1.7 L 12.65,7.26 L 18.75,8.06 L 14.28,12.29 L 15.41,18.34 L 10,15.4 L 4.59,18.34 L 5.72,12.29 L 1.25,8.06 L 7.35,7.26 Z" Stretch="Uniform" Margin="1" Fill="White" Stroke="White" StrokeThickness="4.2" StrokeLineJoin="Round" />
                         <Path Data="M 10,1.7 L 12.65,7.26 L 18.75,8.06 L 14.28,12.29 L 15.41,18.34 L 10,15.4 L 4.59,18.34 L 5.72,12.29 L 1.25,8.06 L 7.35,7.26 Z" Stretch="Uniform" Margin="3" Fill="#FF1F2A5C" Stroke="#FF1F2A5C" StrokeThickness="1.8" StrokeLineJoin="Round" />
                     </Grid>
+                </Grid>
+                <!-- marked with a flower instead of the star -->
+                <Grid x:Name="FlowerMark" Opacity="0" RenderTransformOrigin="0.5,0.5" IsHitTestVisible="False">
+                    <Grid.Effect>
+                        <DropShadowEffect BlurRadius="4" ShadowDepth="1.5" Direction="270" Opacity="0.35" RenderingBias="Performance" />
+                    </Grid.Effect>
+                    <Grid.RenderTransform>
+                        <TransformGroup>
+                            <ScaleTransform x:Name="FlowerScale" ScaleX="0.4" ScaleY="0.4" />
+                            <RotateTransform x:Name="FlowerTurn" Angle="0" />
+                        </TransformGroup>
+                    </Grid.RenderTransform>
+                    <Image x:Name="FlowerImage" Width="31" Height="31" RenderOptions.BitmapScalingMode="HighQuality" />
                 </Grid>
             </Grid>
         </Button>    </Grid>

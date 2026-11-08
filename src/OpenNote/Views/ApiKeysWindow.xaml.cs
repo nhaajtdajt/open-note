@@ -89,6 +89,7 @@ internal partial class ApiKeysWindow : Window
         var cancel = _checking = new CancellationTokenSource();
         SaveButton.IsEnabled = false;
         CheckingText.Text = keys.Count == 1 ? Ui.T("Checking your key with Google…") : Ui.T("Checking {0} keys with Google…", keys.Count);
+        CheckingBar.IsIndeterminate = true;
         CheckingPanel.Visibility = Visibility.Visible;
         Summary.Visibility = Visibility.Collapsed;
 
@@ -103,6 +104,7 @@ internal partial class ApiKeysWindow : Window
         }
         finally
         {
+            CheckingBar.IsIndeterminate = false; // a hidden indeterminate bar keeps animating
             if (!cancel.IsCancellationRequested)
             {
                 CheckingPanel.Visibility = Visibility.Collapsed;

@@ -21,6 +21,8 @@ public partial class App : Application
     HelpWindow? _help;
     ApiKeysWindow? _apiKeys;
     DispatcherTimer? _trimTimer;
+    AgentServer? _agents;
+    bool _active; // one of Open Note's windows is the one in use
     string _dataDirectory = "";
     bool _customDataDirectory;
 
@@ -38,9 +40,9 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        var custom = ParseDataDirectory(e.Args);
+        var custom = Program.ParseDataDirectory(e.Args);
         _customDataDirectory = custom is not null;
-        _dataDirectory = custom ?? DefaultDataDirectory();
+        _dataDirectory = custom ?? Program.DefaultDataDirectory();
 
         if (e.Args.Contains("--resume"))
         {
@@ -63,20 +65,25 @@ public partial class App : Application
     {
         // One instance per data folder. Launching again asks the running instance for a new
         // note; "--exit" asks it to save and quit (used when updating the app).
-        var id = InstanceId(_dataDirectory);
+        var id = Program.InstanceId(_dataDirectory);
         var newNoteName = $@"Local\OpenNote-new-{id}";
         var exitName = $@"Local\OpenNote-exit-{id}";
         _instanceMutex = new Mutex(initiallyOwned: true, $@"Local\OpenNote-{id}", out bool isFirst);
+        // A note file to open (Open Note started by a double-click on an .onote file).
+        var noteFile = args.Where(a => a.EndsWith(NoteFile.Extension, StringComparison.OrdinalIgnoreCase) && File.Exists(a))
+            .Select(Path.GetFullPath).FirstOrDefault();
         if (!isFirst || args.Contains("--exit"))
         {
             // A resume helper that finds OpenNote already running (e.g. started at sign-in) just leaves quietly.
             bool exit = args.Contains("--exit");
-            if (!resumed && EventWaitHandle.TryOpenExisting(exit ? exitName : newNoteName, out var signal))
+            if (!resumed && !exit && noteFile is not null)
+                AgentClient.SendOpenFile(id, noteFile); // the running copy opens it
+            else if (!resumed && EventWaitHandle.TryOpenExisting(exit ? exitName : newNoteName, out var signal))
             {
                 signal.Set();
                 signal.Dispose();
                 if (exit && !isFirst)
-                    isFirst = WaitForExit(_instanceMutex); // an installer replaces the files next
+                    isFirst = Program.WaitForExit(_instanceMutex); // an installer replaces the files next
             }
             if (isFirst)
                 _instanceMutex.ReleaseMutex();
@@ -96,8 +103,16 @@ public partial class App : Application
         DispatcherUnhandledException += OnUnhandledException;
         SessionEnding += OnSessionEnding;
         // When you go back to other apps, give idle memory back to Windows.
-        Deactivated += (_, _) => TrimSoon(TimeSpan.FromSeconds(10));
-        Activated += (_, _) => _trimTimer?.Stop();
+        Deactivated += (_, _) =>
+        {
+            _active = false;
+            TrimSoon(TimeSpan.FromSeconds(10));
+        };
+        Activated += (_, _) =>
+        {
+            _active = true;
+            _trimTimer?.Stop();
+        };
         // "Fade when inactive": notes fade while another app is in use and come back as soon as
         // Open Note is (a note is clicked, or any of its windows opens).
         Deactivated += (_, _) =>
@@ -124,12 +139,25 @@ public partial class App : Application
                 _notes.SetFaded(true); // starting in the background, with another app in front
             ConfigureStartWithWindows(settings);
             RegisterHotkeys(settingsError);
+            _agents = new AgentServer(_notes, _dataDirectory, id, Dispatcher, OpenNoteFile);
             // Someone who just installed Open Note sees how to use it before anything else.
             if (_notes.IsFirstRun)
             {
                 _notes.CreateWelcomeNote();
                 Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, ToggleHelp);
+                // A new install already has everything: no "what's new" note later.
+                if (!settings.ReadFailed)
+                    settings.Update(_dataDirectory, x => x.WhatsNewSeen = NoteManager.WhatsNewId);
             }
+            // After an update, once: a note saying what changed. Only when settings.json has
+            // remembered it, so it can't come back (even after the note is deleted).
+            else if (!settings.ReadFailed && settings.WhatsNewSeen != NoteManager.WhatsNewId
+                     && settings.Update(_dataDirectory, x => x.WhatsNewSeen = NoteManager.WhatsNewId) is null)
+            {
+                _notes.CreateWhatsNewNote();
+            }
+            if (noteFile is not null)
+                Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => OpenNoteFile(noteFile));
         }
         catch (Exception ex)
         {
@@ -194,7 +222,7 @@ public partial class App : Application
             _hotkeys.Register(s.PickNotesHotkey, _notes.PickSelection),
             _hotkeys.Register(s.SavedNotesHotkey, _notes.ToggleSavedSelection),
             _hotkeys.Register(s.HelpHotkey, ToggleHelp),
-            _hotkeys.Register(s.QuitHotkey, ExitApp),
+            _hotkeys.Register(s.QuitHotkey, QuitFromUser),
             _hotkeys.Register(s.FadeHotkey, ToggleFadeWhenInactive),
         }.Where(p => p is not null).ToList();
         if (extraWarning is not null)
@@ -379,6 +407,8 @@ public partial class App : Application
         (s.KeepNotesOnTop, s.NoteEffects, s.UiLanguage, s.HelpLanguage) = (fresh.KeepNotesOnTop, fresh.NoteEffects, fresh.UiLanguage, fresh.HelpLanguage);
         Ui.Use(s.DisplayLanguage());
         (s.FadeWhenInactive, s.FadeHotkey) = (fresh.FadeWhenInactive, fresh.FadeHotkey);
+        if (!fresh.ReadFailed) // an unreadable file mustn't turn AI agents back on
+            (s.AllowAgents, s.NoteStyle) = (fresh.AllowAgents, fresh.NoteStyle);
         (s.NativeLanguage, s.LearningLanguage) = (fresh.NativeLanguage, fresh.LearningLanguage);
         if (!s.FadeWhenInactive)
             _notes.SetFaded(false);
@@ -399,7 +429,8 @@ public partial class App : Application
             _trimTimer.Tick += (_, _) =>
             {
                 _trimTimer.Stop();
-                Memory.Trim();
+                if (!_active) // in use again: trimming now would make the next keystrokes wait; the next switch away trims
+                    Memory.Trim();
             };
         }
         _trimTimer.Stop();
@@ -415,7 +446,11 @@ public partial class App : Application
             _help.Close();
             return;
         }
-        _help = new HelpWindow(_notes!.Settings, SetUiLanguage);
+        _help = new HelpWindow(_notes!.Settings, SetUiLanguage, change =>
+        {
+            if (_notes.Settings.Update(_dataDirectory, change) is { } error)
+                _tray!.ShowWarning(Ui.T("Couldn't save the setting"), error);
+        });
         _help.Closed += (_, _) =>
         {
             _help = null;
@@ -423,6 +458,51 @@ public partial class App : Application
         };
         _help.Show();
         _help.Activate();
+    }
+
+    /// <summary>Opens an .onote file as a new note; says so on the tray icon when it can't.</summary>
+    internal void OpenNoteFile(string path)
+    {
+        if (_notes is null)
+            return;
+        try
+        {
+            if (new FileInfo(path).Length > NoteFile.MaxBytes)
+                throw new InvalidDataException(Ui.T("This isn't an Open Note file."));
+            _notes.ImportNote(File.ReadAllBytes(path));
+        }
+        catch (Exception ex) when (ex is InvalidDataException or IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            _tray?.ShowWarning(Ui.T("Couldn't open {0}", Path.GetFileName(path)), ex.Message);
+        }
+    }
+
+    /// <summary>Tray menu: pick an .onote file and open it as a note.</summary>
+    internal void ChooseNoteFile()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Filter = Ui.T("Open Note note") + $" (*{NoteFile.Extension})|*{NoteFile.Extension}",
+            Multiselect = true,
+        };
+        if (dialog.ShowDialog() == true)
+        {
+            foreach (var file in dialog.FileNames)
+                OpenNoteFile(file);
+        }
+    }
+
+    /// <summary>
+    /// The tray's Exit and the quit shortcut. When the notes can't be saved (full disk, folder not
+    /// writable), ask before quitting would lose the latest changes.
+    /// </summary>
+    internal void QuitFromUser()
+    {
+        if (_notes is { } notes && !notes.TrySave(out var reason)
+            && MessageBox.Show(Ui.T("Open Note couldn't save your latest changes ({0}). Quit anyway? Those changes will be lost.", reason),
+                   "Open Note", MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes)
+            return;
+        ExitApp();
     }
 
     internal void ExitApp()
@@ -434,6 +514,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _agents?.Dispose();
         _notes?.Shutdown();
         _hotkeys?.Dispose();
         _tray?.Dispose();
@@ -453,13 +534,7 @@ public partial class App : Application
     void OnUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         // Never lose notes to a bug: save what we have, log it, and keep running.
-        try
-        {
-            _notes?.Flush();
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-        }
+        _notes?.Flush(); // saving catches and reports file errors itself
         LogError(e.Exception);
         e.Handled = true;
     }
@@ -477,74 +552,5 @@ public partial class App : Application
         catch (Exception logError) when (logError is IOException or UnauthorizedAccessException)
         {
         }
-    }
-
-    /// <summary>
-    /// %LOCALAPPDATA%\OpenNote. The app used to be called DeskNotes: its data folder is moved
-    /// over once, so nobody loses notes when updating.
-    /// </summary>
-    static string DefaultDataDirectory()
-    {
-        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var current = Path.Combine(local, "OpenNote");
-        var legacy = Path.Combine(local, "DeskNotes");
-        if (!Directory.Exists(current) && Directory.Exists(legacy))
-        {
-            // A DeskNotes still running would recreate its folder on its next save, stranding
-            // those edits: ask it to save and quit first.
-            var id = InstanceId(legacy);
-            if (Mutex.TryOpenExisting($@"Local\DeskNotes-{id}", out var running))
-            {
-                using (running)
-                {
-                    if (EventWaitHandle.TryOpenExisting($@"Local\DeskNotes-exit-{id}", out var exit))
-                    {
-                        exit.Set();
-                        exit.Dispose();
-                    }
-                    if (!WaitForExit(running))
-                        return legacy;
-                    running.ReleaseMutex();
-                }
-            }
-            try
-            {
-                Directory.Move(legacy, current);
-            }
-            catch (IOException)
-            {
-                return legacy; // in use or locked: keep using it rather than start empty
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return legacy;
-            }
-        }
-        return current;
-    }
-
-    /// <summary>Waits (up to 10 s) until the running instance has saved and quit; true when it has.</summary>
-    static bool WaitForExit(Mutex instance)
-    {
-        try
-        {
-            return instance.WaitOne(TimeSpan.FromSeconds(10));
-        }
-        catch (AbandonedMutexException)
-        {
-            return true; // it ended without releasing the mutex: gone all the same
-        }
-    }
-
-    static string? ParseDataDirectory(string[] args)
-    {
-        int i = Array.IndexOf(args, "--data");
-        return i >= 0 && i + 1 < args.Length ? Path.GetFullPath(args[i + 1]) : null;
-    }
-
-    static string InstanceId(string dataDirectory)
-    {
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(dataDirectory.ToUpperInvariant()));
-        return Convert.ToHexString(hash, 0, 8);
     }
 }

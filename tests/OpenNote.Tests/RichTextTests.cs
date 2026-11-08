@@ -31,6 +31,7 @@ public class RichTextTests
     [InlineData("a\r\n\r\n\r\nb\r\n")]                       // blank lines and a trailing newline survive
     [InlineData("tab\there and C:\\Users\\path")]
     [InlineData("**bold** and *italic* and ***both*** 2\\*3")]
+    [InlineData("{red}red **bold**{/} and {blue}*blue*{/}")]
     public void LoadThenSave_GivesBackTheSameText(string text) =>
         Assert.Equal(text, OnSta(() =>
         {
@@ -83,5 +84,22 @@ public class RichTextTests
             var doc = new FlowDocument();
             RichText.Load(doc, "☐ buy **milk**");
             return RichText.PlainText((Paragraph)doc.Blocks.FirstBlock);
+        }));
+
+    [Fact]
+    public void TextColor_FollowsThePaper_AndNoColorIsCleared() =>
+        Assert.Equal("light:#FFC62828 dark:#FFFF8A80 cleared:True saved:{red}x{/}y", OnSta(() =>
+        {
+            var doc = new FlowDocument();
+            RichText.Load(doc, "{red}x{/}y");
+            var p = (Paragraph)doc.Blocks.FirstBlock;
+            var light = p.Inlines.FirstInline.Foreground.ToString();
+            RichText.FixTextColors(doc, darkPaper: true);
+            var dark = p.Inlines.FirstInline.Foreground.ToString();
+            // "No color" puts the ink on the text; fixing takes it off, so the text follows the note's ink again.
+            new TextRange(RichText.PositionAt(p, 1), RichText.PositionAt(p, 2)).ApplyPropertyValue(TextElement.ForegroundProperty, System.Windows.Media.Brushes.Black);
+            RichText.FixTextColors(doc, darkPaper: true);
+            bool cleared = p.Inlines.LastInline.ReadLocalValue(TextElement.ForegroundProperty) == DependencyProperty.UnsetValue;
+            return $"light:{light} dark:{dark} cleared:{cleared} saved:{RichText.Save(doc)}";
         }));
 }

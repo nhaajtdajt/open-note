@@ -112,7 +112,7 @@
         <!-- Check results -->
         <StackPanel x:Name="CheckingPanel" Margin="0,10,0,0" Visibility="Collapsed">
             <TextBlock x:Name="CheckingText" Foreground="#555" />
-            <ProgressBar IsIndeterminate="True" Height="3" Margin="0,6,0,0" BorderThickness="0" Foreground="#D9A400" Background="#14000000" />
+            <ProgressBar x:Name="CheckingBar" IsIndeterminate="False" Height="3" Margin="0,6,0,0" BorderThickness="0" Foreground="#D9A400" Background="#14000000" />
         </StackPanel>
         <ItemsControl x:Name="Results" Margin="0,10,0,0">
             <ItemsControl.ItemTemplate>

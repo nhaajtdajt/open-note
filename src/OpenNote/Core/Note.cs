@@ -64,6 +64,12 @@ public sealed class Note
     /// <summary>Marked with the star in the top-left corner: a note that matters. Listed first in the notes list.</summary>
     public bool IsImportant { get; set; }
 
+    /// <summary>
+    /// How an important note is marked: the star (empty) or a flower id from <see cref="NoteMarks"/>.
+    /// Kept when the mark is taken off, so Ctrl+Shift+S brings the same one back.
+    /// </summary>
+    public string Mark { get; set; } = NoteMarks.Star;
+
     public NoteState State { get; set; } = NoteState.Visible;
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
     public DateTime ModifiedUtc { get; set; } = DateTime.UtcNow;

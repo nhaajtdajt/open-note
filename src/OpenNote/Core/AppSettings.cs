@@ -67,6 +67,21 @@ public sealed class AppSettings
     public string FadeHotkey { get; set; } = "Ctrl+Alt+F";
 
     /// <summary>
+    /// On by default: AI agents on this PC may read the notes and add new ones with the
+    /// opennote-ai command (never delete or rewrite them). Turned off on the how-to card.
+    /// </summary>
+    public bool AllowAgents { get; set; } = true;
+
+    /// <summary>How the user writes notes, in their own words, for AI agents to follow; empty: <see cref="AgentCommands.DefaultStyle"/>.</summary>
+    public string NoteStyle { get; set; } = "";
+
+    /// <summary>
+    /// The last "what's new" note shown (<see cref="Services.NoteManager.WhatsNewId"/>): after an
+    /// update it appears once, and never again, even if it is deleted. A new install starts with it set.
+    /// </summary>
+    public string WhatsNewSeen { get; set; } = "";
+
+    /// <summary>
     /// Language of the app's menus and windows ("vi", "en", … see <see cref="Language.All"/>),
     /// picked at the first start and changed on the how-to card; empty: not picked yet.
     /// </summary>
@@ -215,7 +230,8 @@ public sealed class AppSettings
         catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
         {
             error = Ui.T("settings.json could not be read ({0}). Using defaults until it's fixed.", ex.Message);
-            return new AppSettings { ReadFailed = true };
+            // AI agents stay locked out until the file can be read: it may be where they were turned off.
+            return new AppSettings { ReadFailed = true, AllowAgents = false };
         }
     }
 
@@ -227,20 +243,31 @@ public sealed class AppSettings
     {
         var loaded = JsonSerializer.Deserialize<AppSettings>(NoteStore.WithoutBom(File.ReadAllBytes(path)), JsonOptions) ?? new AppSettings();
         loaded.OpenCodeApiKey ??= "";
-        if (loaded.OpenCodeModels is null or { Count: 0 })
+        // A hand edit can leave nulls in a list ("aiServices": [null]): drop them rather than fail later.
+        loaded.OpenCodeModels = NoBlanks(loaded.OpenCodeModels);
+        if (loaded.OpenCodeModels.Count == 0)
             loaded.OpenCodeModels = new AppSettings().OpenCodeModels;
-        loaded.AiServices ??= [];
-        loaded.GeminiApiKeys ??= [];
+        loaded.AiServices = (loaded.AiServices ?? []).Where(x => x is not null).ToList();
+        foreach (var service in loaded.AiServices)
+            service.Models = NoBlanks(service.Models);
+        loaded.GeminiApiKeys = NoBlanks(loaded.GeminiApiKeys);
+        loaded.GeminiModels = NoBlanks(loaded.GeminiModels);
         if (loaded.GeminiModels is null or { Count: 0 } || loaded.GeminiModels.SequenceEqual(OldDefaultGeminiModels))
             loaded.GeminiModels = new AppSettings().GeminiModels; // a hand-made list is kept as it is
         return loaded;
     }
 
+    static List<string> NoBlanks(List<string>? list) => (list ?? []).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+
     /// <summary>Writes to a temp file first, so a crash mid-write can't leave half a file (and lose the keys).</summary>
     static void Write(string path, AppSettings settings)
     {
         var temp = path + ".tmp";
-        File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(settings, JsonOptions));
+        using (var fs = new FileStream(temp, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            JsonSerializer.Serialize(fs, settings, JsonOptions);
+            fs.Flush(flushToDisk: true); // on disk before the swap, so a power cut can't leave an empty settings.json
+        }
         File.Move(temp, path, overwrite: true);
     }
 }

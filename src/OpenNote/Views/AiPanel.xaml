@@ -56,7 +56,7 @@
 
             <StackPanel x:Name="LoadingView">
                 <TextBlock x:Name="AskingText" Text="Asking the AI…" Foreground="#666666" />
-                <ProgressBar IsIndeterminate="True" Height="3" Margin="0,8,0,2" BorderThickness="0"
+                <ProgressBar x:Name="Spinner" IsIndeterminate="True" Height="3" Margin="0,8,0,2" BorderThickness="0"
                              Foreground="#D9A400" Background="#14000000" />
             </StackPanel>
 
