@@ -38,6 +38,7 @@ Build Open Note for macOS so that it **behaves exactly like the Windows app in `
 
 - The Mac app's version is the Windows version it matches (now **2.0.0**, from `<Version>` in `src/OpenNote/OpenNote.csproj`).
 - When `main` gets Windows changes in `src/OpenNote/`, port exactly those changes in a follow-up pull request. `git log --oneline -- src/OpenNote` shows what changed since the version you match.
+- Every Windows release comes with a porting guide in `docs/mac-port/<version>.md`: the checklist of what to follow (features, texts, settings and data fields, fixes, tests, open questions). Start from `docs/mac-port/README.md`. Screens of the current Windows app are in `docs/screens/`.
 
 ### Git workflow
 
